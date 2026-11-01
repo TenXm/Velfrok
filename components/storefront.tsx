@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Search, ShoppingCart, UserRound, Heart, Menu, ArrowRight, ShieldCheck, Tag, UsersRound, Monitor, Shirt, House, FlaskConical, Dumbbell, Puzzle, BookOpen, PawPrint, Grid2X2, Truck, RotateCcw, LockKeyhole, Headphones, Mail, X, Plus, Minus, Leaf, Sparkles } from "lucide-react";
-import { products, type Product } from "@/lib/products";
+import { getProducts, type Product } from "@/lib/products";
 import { storeConfig } from "@/lib/store-config";
 
 type CartItem = { product: Product; quantity: number };
