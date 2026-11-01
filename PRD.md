@@ -1,4 +1,4 @@
-# Master Product Requirements Document (PRD): Full-Stack Secure Online Shop (Build to Google Indexing)
+e# Master Product Requirements Document (PRD): Full-Stack Secure Online Shop (Build to Google Indexing)
 
 **Document Version:** 1.0 (Combined Aesthetic, Functional, Security & SEO Specification)  
 **Target Stack (100% Free Tier):** GitHub · Next.js (App Router) · Supabase (Postgres, Auth, Storage, RLS) · Resend / Brevo (Free Email OTP) · Upstash Redis (Free Rate Limiting) · Vercel · Google Search Console
@@ -221,3 +221,15 @@ Before writing SQL migrations, the following plain-english access rules govern e
    * Open **Google Search Console**, add your domain property, and verify ownership via DNS TXT record (on your domain registrar/Vercel DNS).
    * Navigate to **Sitemaps** in Google Search Console and submit `https://yourdomain.com/sitemap.xml`.
    * Use the **URL Inspection Tool** on your homepage and top product URLs and click **Request Indexing** to trigger immediate Googlebot crawling and Rich Results validation.
+  
+   * • Frontend (ফ্রন্টএন্ড বিশ্বাস): Blindly trusting data, logic, or requests coming from the client-side.
+• Access Control (অ্যাক্সেস কন্ট্রোল): Broken object level or function level authorization (BOLA/BFLA).
+• Business Logic (বিজনেস লজিক): Flaws in application workflow design that let users bypass intended rules (e.g., manipulating pricing or quantities).
+• External APIs (এক্সটার্নাল এপিআই): Insecure integration or lack of validation when communicating with third-party services.
+• SSRF (সার্ভার রিকোয়েস্ট): Server-Side Request Forgery, where an attacker tricks the server into making unauthorized requests to internal or external systems.
+• Sensitive Data (গোপন ডেটা লিক): Exposing PII, passwords, or tokens in API responses.
+• Input Validation (ইনপুট যাচাই): Failing to sanitize or validate incoming payloads, leading to injection attacks.
+• Rate Limiting (রেট লিমিটিং): Lack of request throttling, opening the system to brute-force or Denial of Service (DoS) attacks.
+• API Inventory (এপিআই ইনভেন্টরি): Unmanaged, forgotten, or shadow/orphan API endpoints left active in production.
+• Configuration (কনফিগারেশন): Misconfigured security headers, CORS policies, or verbose error messages.
+
