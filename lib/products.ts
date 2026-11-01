@@ -13,7 +13,7 @@ export type Product = {
   badge: string;
   description: string;
 };
-
+// Fetch active products from Supabase
 export async function getProducts(): Promise<Product[]> {
   const { data, error } = await supabase
   .from("products")
