@@ -30,9 +30,9 @@ export async function getProducts(): Promise<Product[]> {
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Supabase product error:", error.message);
-    return [];
-  }
+  console.error("Supabase product error:", error);
+  throw error;
+}
 
   return (data ?? []).map((item: any) => ({
     id: item.id,
