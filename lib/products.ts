@@ -24,7 +24,7 @@ export async function getProducts(): Promise<Product[]> {
   mrp,
   selling_price,
   discount_pct,
-  image_urls
+  images
 `)
     .eq("is_active", true)
     .order("created_at", { ascending: false });
@@ -42,7 +42,7 @@ export async function getProducts(): Promise<Product[]> {
     mrp: Number(item.mrp),
     rating: "5.0",
     reviews: "New",
-    image: item.image_urls?.[0] ?? "",
+    image: item.images?.[0] ?? "",
     badge: item.discount_pct > 0 ? `-${item.discount_pct}%` : "New",
     description: item.description ?? ""
   }));
