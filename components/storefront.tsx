@@ -21,12 +21,24 @@ const categories = [
 const money = (value:number) => new Intl.NumberFormat("en-IN", { style:"currency", currency:"INR", maximumFractionDigits:0 }).format(value);
 
 export default function Storefront() {
+  const [products, setProducts] = useState<Product[]>([]);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [subscribed, setSubscribed] = useState(false);
+  useEffect(() => {
+  let cancelled = false;
+
+  getProducts().then((data) => {
+    if (!cancelled) setProducts(data);
+  });
+
+  return () => {
+    cancelled = true;
+  };
+}, []);
 
   const shown = useMemo(() => products.filter(p =>
     (category === "All" || p.category === category) &&
