@@ -16,17 +16,15 @@ export type Product = {
 
 export async function getProducts(): Promise<Product[]> {
   const { data, error } = await supabase
-    .from("products")
     .select(`
-      id,
-      name,
-      description,
-      mrp,
-      selling_price,
-      discount_pct,
-      image_urls,
-      categories(name)
-    `)
+  id,
+  name,
+  description,
+  mrp,
+  selling_price,
+  discount_pct,
+  image_urls
+`)
     .eq("is_active", true)
     .order("created_at", { ascending: false });
 
@@ -38,7 +36,7 @@ export async function getProducts(): Promise<Product[]> {
   return (data ?? []).map((item: any) => ({
     id: item.id,
     name: item.name,
-    category: item.categories?.name ?? "Everyday Essentials",
+    category: "Everyday Essentials",
     price: Number(item.selling_price),
     mrp: Number(item.mrp),
     rating: "5.0",
