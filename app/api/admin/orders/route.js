@@ -4,13 +4,18 @@ import { auditLog } from "@/lib/audit";
 import { clean } from "@/lib/sanitize";
 import { rateLimit } from "@/lib/rate-limit";
 
-const ALLOWED_PAYMENT_STATUSES = ["paid", "failed"];
+const ALLOWED_PAYMENT_STATUSES = [
+  "pending_utr",
+  "pending_verification",
+  "accepted",
+  "rejected"
+];
+
 const ALLOWED_ORDER_STATUSES = [
-  "placed",
+  "confirmed",
   "packed",
-  "dispatched",
-  "delivered",
-  "cancelled",
+  "shipped",
+  "delivered"
 ];
 
 function isResponse(value) {
@@ -39,7 +44,7 @@ export async function GET(req) {
 
   const { data, error: queryError } = await supabaseAdmin()
     .from("orders")
-    .select("*, payment_intents(token,status,utr,expires_at)")
+    .select("*, order_items(*)")
     .order("created_at", { ascending: false })
     .limit(200);
 
@@ -106,15 +111,15 @@ export async function PATCH(req) {
     patch.payment_status = body.paymentStatus;
   }
 
-  if (body?.orderStatus !== undefined) {
-    if (!ALLOWED_ORDER_STATUSES.includes(body.orderStatus)) {
+  if (body?.fulfillmentStatus !== undefined) {
+    if (!ALLOWED_ORDER_STATUSES.includes(body.fulfillmentStatus)) {
       return Response.json(
-        { error: "Invalid order status" },
+        { error: "Invalid fulfillment status" },
         { status: 400 }
       );
     }
 
-    patch.status = body.orderStatus;
+    patch.fulfillment_status = body.fulfillmentStatus;
   }
 
   if (Object.keys(patch).length === 0) {
@@ -126,7 +131,6 @@ export async function PATCH(req) {
 
   const admin = supabaseAdmin();
 
-  // Confirm the order exists before attempting updates.
   const { data: existingOrder, error: lookupError } = await admin
     .from("orders")
     .select("id")
@@ -147,21 +151,6 @@ export async function PATCH(req) {
     );
   }
 
-  // Update payment intents when an admin changes payment status.
-  if (patch.payment_status) {
-    const { error: paymentError } = await admin
-      .from("payment_intents")
-      .update({ status: patch.payment_status })
-      .eq("order_id", id);
-
-    if (paymentError) {
-      return Response.json(
-        { error: "Could not update payment status" },
-        { status: 500 }
-      );
-    }
-  }
-
   const { error: updateError } = await admin
     .from("orders")
     .update(patch)
@@ -180,8 +169,7 @@ export async function PATCH(req) {
       ...patch,
     });
   } catch {
-    // The order update succeeded; audit logging failure should not
-    // make the admin interface report that the update itself failed.
+    // Ignore audit log error if main update succeeds
   }
 
   return Response.json({ ok: true });
