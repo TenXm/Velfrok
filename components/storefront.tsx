@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 
 import { getProducts, type Product } from "@/lib/products";
+import { useRouter } from "next/navigation";
 import { storeConfig } from "@/lib/store-config";
 
 type CartItem = {
@@ -60,7 +61,8 @@ export default function Storefront() {
   const [products, setProducts] = useState<Product[]>([]);
   const [productsLoading, setProductsLoading] = useState(true);
   const [productError, setProductError] = useState("");
-
+const router = useRouter();
+const [loggedIn, setLoggedIn] = useState(false);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All");
 
