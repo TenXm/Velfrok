@@ -33,6 +33,7 @@ import {
 import { getProducts, type Product } from "@/lib/products";
 import { useRouter } from "next/navigation";
 import { storeConfig } from "@/lib/store-config";
+import { supabaseBrowser } from "@/lib/supabase";
 
 type CartItem = {
   product: Product;
@@ -61,8 +62,8 @@ export default function Storefront() {
   const [products, setProducts] = useState<Product[]>([]);
   const [productsLoading, setProductsLoading] = useState(true);
   const [productError, setProductError] = useState("");
-const router = useRouter();
-const [loggedIn, setLoggedIn] = useState(false);
+  const router = useRouter();
+  const [loggedIn, setLoggedIn] = useState(false);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All");
 
@@ -73,6 +74,21 @@ const [loggedIn, setLoggedIn] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
 
   // Load products safely from Supabase.
+  useEffect(() => {
+  const supabase = supabaseBrowser();
+
+  supabase.auth.getSession().then(({ data }) => {
+    setLoggedIn(Boolean(data.session));
+  });
+
+  const {
+    data: { subscription },
+  } = supabase.auth.onAuthStateChange((_event, session) => {
+    setLoggedIn(Boolean(session));
+  });
+
+  return () => subscription.unsubscribe();
+}, []);
   useEffect(() => {
     let cancelled = false;
 
@@ -191,18 +207,27 @@ const [loggedIn, setLoggedIn] = useState(false);
             </button>
           </form>
 
-          <div className="header-actions">
-            <button
-              className="header-action"
-              onClick={() =>
-                alert(
-                  "Customer login will be connected to secure email OTP in the authentication phase."
-                )
-              }
-            >
-              <UserRound size={20} />
-              Account
-            </button>
+          <button
+  className="header-action"
+  onClick={async () => {
+    if (loggedIn) {
+      const supabase = supabaseBrowser();
+      const { error } = await supabase.auth.signOut();
+
+      if (error) {
+        alert("Logout failed. Please try again.");
+        return;
+      }
+
+      setLoggedIn(false);
+    } else {
+      window.location.href = "/login";
+    }
+  }}
+>
+  <UserRound size={20} />
+  {loggedIn ? "Logout" : "Login"}
+</button>
 
             <button
               className="header-action"
