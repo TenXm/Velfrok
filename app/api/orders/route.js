@@ -220,14 +220,20 @@ export async function POST(req) {
 
     const token = newPaymentToken();
 
-    const { error: paymentError } = await db
-      .from("payment_intents")
-      .insert({
-        token,
-        order_id: order.id,
-        user_id: user.id,
-        amount_inr: order.total_inr,
-      });
+const expiresAt = new Date(
+  Date.now() + 20 * 60 * 1000
+).toISOString();
+
+const { error: paymentError } = await db
+  .from("payment_intents")
+  .insert({
+    token,
+    order_id: order.id,
+    user_id: user.id,
+    amount_inr: order.total_inr,
+    status: "opened",
+    expires_at: expiresAt,
+  });
 
     if (paymentError) {
       console.error(
