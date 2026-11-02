@@ -1,3 +1,5 @@
+
+import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata = {
@@ -10,7 +12,11 @@ export const viewport = {
   initialScale: 1,
 };
 
-export default function RootLayout({ children }) {
+export default function RootLayout({
+  children,
+}: {
+  children: ReactNode;
+}) {
   return (
     <html lang="en">
       <body className="min-h-screen bg-gray-50 text-gray-900">
