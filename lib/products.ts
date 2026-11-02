@@ -11,6 +11,7 @@ export type Product = {
   image: string;
   badge: string;
   description: string;
+  createdAt: string;
 };
 
 export async function getProducts(): Promise<Product[]> {
@@ -24,6 +25,7 @@ export async function getProducts(): Promise<Product[]> {
       selling_price,
       discount_pct,
       images,
+      created_at,
       categories (
         name
       )
@@ -66,6 +68,7 @@ export async function getProducts(): Promise<Product[]> {
           ? `-${item.discount_pct}%`
           : "New",
       description: item.description ?? "",
+      createdAt: item.created_at ?? "",
     };
   });
 }
