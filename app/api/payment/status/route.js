@@ -1,5 +1,9 @@
+
 import { supabaseAdmin } from "@/lib/supabase";
 import { requireUser } from "@/lib/auth";
+
+// This endpoint reads request headers and must run dynamically.
+export const dynamic = "force-dynamic";
 
 export async function GET(req) {
   try {
