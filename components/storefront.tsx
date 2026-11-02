@@ -1,33 +1,29 @@
 
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Search,
   ShoppingCart,
   Heart,
   Menu,
   ArrowRight,
-  ShieldCheck,
-  Tag,
-  UsersRound,
   Monitor,
   Shirt,
   House,
   FlaskConical,
-  Dumbbell,
   Puzzle,
-  BookOpen,
-  PawPrint,
   Truck,
   RotateCcw,
   LockKeyhole,
   Headphones,
-  Mail,
   X,
   Plus,
   Minus,
   Leaf,
+  CookingPot,
+  Sprout,
+  Droplet,
 } from "lucide-react";
 
 import { getProducts, type Product } from "@/lib/products";
@@ -39,15 +35,17 @@ type CartItem = {
   quantity: number;
 };
 
+type Collection = "all" | "new" | "home" | "tech";
+
 const categories = [
   { name: "Electronics", icon: Monitor, color: "#e0edf0" },
   { name: "Fashion", icon: Shirt, color: "#f7e5df" },
   { name: "Home & Living", icon: House, color: "#f2ead6" },
   { name: "Beauty", icon: FlaskConical, color: "#f5e2e6" },
-  { name: "Sports", icon: Dumbbell, color: "#e0eaf2" },
+  { name: "Kitchen", icon: CookingPot, color: "#e0eaf2" },
   { name: "Toys & Kids", icon: Puzzle, color: "#f2e6dc" },
-  { name: "Books", icon: BookOpen, color: "#eee2e9" },
-  { name: "Pet Supplies", icon: PawPrint, color: "#e6e9ef" },
+  { name: "Plants", icon: Sprout, color: "#eee2e9" },
+  { name: "Hygiene", icon: Droplet, color: "#e6e9ef" },
 ];
 
 const money = (value: number) =>
@@ -63,14 +61,11 @@ export default function Storefront() {
   const [productError, setProductError] = useState("");
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All");
+  const [collection, setCollection] = useState<Collection>("all");
 
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
 
-  const [email, setEmail] = useState("");
-  const [subscribed, setSubscribed] = useState(false);
-
-  // Load products safely from Supabase.
   useEffect(() => {
     let cancelled = false;
 
@@ -101,23 +96,47 @@ export default function Storefront() {
     };
   }, []);
 
-  // Search and category filtering.
-  const shown = useMemo(
+  const filteredProducts = useMemo(() => {
+    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+
+    return products.filter((product) => {
+      const matchesCategory =
+        category === "All" || product.category === category;
+
+      const searchText =
+        `${product.name} ${product.category} ${product.id}`.toLowerCase();
+
+      const matchesSearch = searchText.includes(query.trim().toLowerCase());
+
+      let matchesCollection = true;
+
+      if (collection === "new") {
+        const createdTime = new Date(product.createdAt).getTime();
+        matchesCollection =
+          Number.isFinite(createdTime) && createdTime >= sevenDaysAgo;
+      }
+
+      if (collection === "home") {
+        matchesCollection = product.category === "Home & Living";
+      }
+
+      if (collection === "tech") {
+        matchesCollection = product.category === "Electronics";
+      }
+
+      return matchesCategory && matchesSearch && matchesCollection;
+    });
+  }, [products, category, collection, query]);
+
+  const productCategories = useMemo(
     () =>
-      products.filter(
-        (product) =>
-          (category === "All" || product.category === category) &&
-          `${product.name} ${product.category} ${product.id}`
-            .toLowerCase()
-            .includes(query.toLowerCase())
+      Array.from(
+        new Set(filteredProducts.map((product) => product.category))
       ),
-    [products, category, query]
+    [filteredProducts]
   );
 
-  const count = cart.reduce(
-    (sum, item) => sum + item.quantity,
-    0
-  );
+  const count = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   const subtotal = cart.reduce(
     (sum, item) => sum + item.product.price * item.quantity,
@@ -154,6 +173,28 @@ export default function Storefront() {
     );
   }
 
+  function chooseCategory(name: string) {
+    setCategory(category === name ? "All" : name);
+    setCollection("all");
+  }
+
+  function chooseCollection(value: Collection) {
+    setCategory("All");
+    setCollection(value);
+    document.getElementById("products")?.scrollIntoView({
+      behavior: "smooth",
+    });
+  }
+
+  const collectionTitle =
+    collection === "new"
+      ? "New Arrivals"
+      : collection === "home"
+        ? "Home Refresh"
+        : collection === "tech"
+          ? "Tech Essentials"
+          : "Shop by Category";
+
   return (
     <main>
       <div className="promo">
@@ -176,7 +217,12 @@ export default function Storefront() {
 
           <form
             className="search"
-            onSubmit={(event) => event.preventDefault()}
+            onSubmit={(event) => {
+              event.preventDefault();
+              document.getElementById("products")?.scrollIntoView({
+                behavior: "smooth",
+              });
+            }}
           >
             <input
               value={query}
@@ -221,68 +267,12 @@ export default function Storefront() {
           </a>
           <a href="#">Home</a>
           <a href="#products">Shop</a>
-          <a href="#products">Deals</a>
-          <a href="#products">New Arrivals</a>
+          <a href="#collections">Collections</a>
+          <a href="#products" onClick={() => chooseCollection("new")}>
+            New Arrivals
+          </a>
           <a href="#footer">About Velfrok</a>
-          <a href="#reviews">Reviews</a>
         </nav>
-
-        <section className="hero">
-          <div className="hero-copy">
-            <div className="eyebrow">
-              Thoughtful finds for every day
-            </div>
-
-            <h1>
-              Elevate Your
-              <br />
-              Everyday
-            </h1>
-
-            <p>{storeConfig.description}</p>
-
-            <a className="primary" href="#products">
-              Shop Now <ArrowRight size={16} />
-            </a>
-
-            <div className="hero-benefits">
-              <span>
-                <ShieldCheck size={20} /> Premium Quality
-              </span>
-              <span>
-                <Tag size={19} /> Great Prices
-              </span>
-              <span>
-                <UsersRound size={20} /> Loved by shoppers
-              </span>
-            </div>
-          </div>
-
-          <div className="hero-art">
-            <img
-              src="https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&fit=crop&w=1400&q=90"
-              alt="Warm, thoughtfully styled home interior"
-            />
-
-            <div className="sale-tag">
-              Velfrok
-              <br />
-              <strong>SUMMER</strong>
-              <b>SALE</b>
-              <br />
-              UP TO <b>40%</b>
-              <br />
-              OFF
-            </div>
-          </div>
-        </section>
-
-        <div className="hero-dots">
-          <i />
-          <i />
-          <i />
-          <i />
-        </div>
 
         <section
           id="categories"
@@ -292,12 +282,8 @@ export default function Storefront() {
           {categories.map(({ name, icon: Icon, color }) => (
             <button
               key={name}
-              className={`category ${
-                category === name ? "active" : ""
-              }`}
-              onClick={() =>
-                setCategory(category === name ? "All" : name)
-              }
+              className={`category ${category === name ? "active" : ""}`}
+              onClick={() => chooseCategory(name)}
             >
               <span
                 className="category-icon"
@@ -310,24 +296,83 @@ export default function Storefront() {
           ))}
         </section>
 
+        <section id="collections" className="promo-cards">
+          <button
+            type="button"
+            className="promo-card"
+            style={{ background: "#e3e9d5" }}
+            onClick={() => chooseCollection("new")}
+            aria-pressed={collection === "new"}
+          >
+            <p>New Arrivals</p>
+            <h3>
+              Fresh Finds
+              <br />
+              Just In
+            </h3>
+            <span>Shop Now →</span>
+            <img
+              src="https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=500&q=80"
+              alt="Green handbag"
+            />
+          </button>
+
+          <button
+            type="button"
+            className="promo-card"
+            style={{ background: "#f1e7d9" }}
+            onClick={() => chooseCollection("home")}
+            aria-pressed={collection === "home"}
+          >
+            <p>Home Refresh</p>
+            <h3>
+              Make Your
+              <br />
+              Space Better
+            </h3>
+            <span>Shop Now →</span>
+            <img
+              src="https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?auto=format&fit=crop&w=500&q=80"
+              alt="Cozy chair"
+            />
+          </button>
+
+          <button
+            type="button"
+            className="promo-card"
+            style={{ background: "#deebf0" }}
+            onClick={() => chooseCollection("tech")}
+            aria-pressed={collection === "tech"}
+          >
+            <p>Tech Essentials</p>
+            <h3>
+              Upgrade Your
+              <br />
+              Lifestyle
+            </h3>
+            <span>Shop Now →</span>
+            <img
+              src="https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=500&q=80"
+              alt="Minimal wristwatch"
+            />
+          </button>
+        </section>
+
         <section id="products" className="section">
           <div className="section-head">
             <h2>
-              {category === "All" ? "Top Picks For You" : category}
+              {category !== "All" ? category : collectionTitle}
             </h2>
 
             <button
               className="text-button"
               onClick={() => {
                 setCategory("All");
+                setCollection("all");
                 setQuery("");
               }}
             >
-              See All Deals{" "}
-              <ArrowRight
-                size={14}
-                style={{ verticalAlign: "middle" }}
-              />
+              View All <ArrowRight size={14} />
             </button>
           </div>
 
@@ -337,161 +382,61 @@ export default function Storefront() {
             <div className="empty" role="alert">
               {productError}
             </div>
-          ) : shown.length > 0 ? (
-            <div className="product-grid">
-              {shown.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  onAdd={() => add(product)}
-                />
-              ))}
+          ) : filteredProducts.length === 0 ? (
+            <div className="empty">
+              {collection === "new"
+                ? "No products have been added in the last 7 days."
+                : "No products match this selection yet."}
             </div>
           ) : (
-            <div className="empty">
-              No products match that search. Try another keyword.
+            <div className="category-shelves">
+              {productCategories.map((shelfCategory) => {
+                const shelfProducts = filteredProducts.filter(
+                  (product) => product.category === shelfCategory
+                );
+
+                return (
+                  <section
+                    className="category-shelf"
+                    key={shelfCategory}
+                  >
+                    <div className="section-head">
+                      <h2>{shelfCategory}</h2>
+                      <button
+                        className="text-button"
+                        onClick={() => {
+                          setCategory(shelfCategory);
+                          setCollection("all");
+                          document.getElementById("products")?.scrollIntoView({
+                            behavior: "smooth",
+                          });
+                        }}
+                      >
+                        View All <ArrowRight size={14} />
+                      </button>
+                    </div>
+
+                    <div className="product-grid">
+                      {shelfProducts.map((product) => (
+                        <ProductCard
+                          key={product.id}
+                          product={product}
+                          onAdd={() => add(product)}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                );
+              })}
             </div>
           )}
-        </section>
-
-        <section className="promo-cards">
-          <article
-            className="promo-card"
-            style={{ background: "#e3e9d5" }}
-          >
-            <p>New Arrivals</p>
-            <h3>
-              Fresh Styles
-              <br />
-              Just In
-            </h3>
-            <a href="#products">Shop Now →</a>
-            <img
-              src="https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=500&q=80"
-              alt="Green handbag"
-            />
-          </article>
-
-          <article
-            className="promo-card"
-            style={{ background: "#f1e7d9" }}
-          >
-            <p>Home Refresh</p>
-            <h3>
-              Make Your
-              <br />
-              Space Better
-            </h3>
-            <a href="#products">Shop Now →</a>
-            <img
-              src="https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?auto=format&fit=crop&w=500&q=80"
-              alt="Cozy chair"
-            />
-          </article>
-
-          <article
-            className="promo-card"
-            style={{ background: "#deebf0" }}
-          >
-            <p>Tech Essentials</p>
-            <h3>
-              Upgrade Your
-              <br />
-              Lifestyle
-            </h3>
-            <a href="#products">Shop Now →</a>
-            <img
-              src="https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=500&q=80"
-              alt="Minimal wristwatch"
-            />
-          </article>
-        </section>
-
-        <section id="reviews" className="section">
-          <div className="section-head">
-            <h2>
-              Loved By Everyday Shoppers{" "}
-              <span style={{ color: "#e98b8c" }}>♥</span>
-            </h2>
-            <span className="rating">
-              4.8/5 Average Rating　★★★★★
-            </span>
-          </div>
-
-          <div className="reviews">
-            {[
-              [
-                "SJ",
-                "Sarah J.",
-                "Amazing quality and fast delivery! Velfrok has become my go-to for everyday essentials.",
-              ],
-              [
-                "MT",
-                "Michael T.",
-                "Great value, thoughtful products, and a smooth shopping experience. Highly recommend!",
-              ],
-              [
-                "PK",
-                "Priya K.",
-                "I love the variety. I can find useful things in one place. So convenient!",
-              ],
-            ].map(([initial, name, review]) => (
-              <article className="review" key={name}>
-                <div className="avatar">{initial}</div>
-                <div>
-                  <strong>
-                    {name}{" "}
-                    <span style={{ color: "#328b5d" }}>●</span>
-                  </strong>
-                  <div className="rating">★★★★★</div>
-                  <p>“{review}”</p>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <section className="newsletter">
-          <div className="mail-icon">
-            <Mail size={30} />
-          </div>
-
-          <div>
-            <h2>Stay in the Loop</h2>
-            <p>
-              Get exclusive deals, new arrivals, and everyday
-              inspiration straight to your inbox.
-            </p>
-          </div>
-
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (email.includes("@")) {
-                setSubscribed(true);
-              }
-            }}
-          >
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="Enter your email address"
-              aria-label="Email address"
-            />
-
-            <button type="submit">
-              {subscribed ? "Subscribed ✓" : "Subscribe"}
-            </button>
-          </form>
         </section>
 
         <section className="services">
           <Service
             icon={<Truck size={25} />}
             title="Free Shipping"
-            sub="On orders over ₹999"
+            sub={`On orders over ${money(storeConfig.freeShippingAbove)}`}
           />
           <Service
             icon={<RotateCcw size={25} />}
@@ -515,11 +460,7 @@ export default function Storefront() {
         <div className="site">
           <div className="footer-grid">
             <div>
-              <a
-                className="brand"
-                href="#"
-                style={{ color: "#fff" }}
-              >
+              <a className="brand" href="#" style={{ color: "#fff" }}>
                 <span className="brand-mark">
                   <Leaf size={24} />
                 </span>
@@ -536,10 +477,11 @@ export default function Storefront() {
             <div>
               <h4>Shop</h4>
               <a href="#categories">All Categories</a>
-              <a href="#products">New Arrivals</a>
-              <a href="#products">Best Sellers</a>
+              <a href="#products" onClick={() => chooseCollection("new")}>
+                New Arrivals
+              </a>
               <a href="#products">Deals</a>
-              <a href="#products">Gift Cards</a>
+              <a href="#collections">Collections</a>
             </div>
 
             <div>
@@ -556,8 +498,6 @@ export default function Storefront() {
             <div>
               <h4>Company</h4>
               <a href="#footer">About Us</a>
-              <a href="#footer">Careers</a>
-              <a href="#footer">Blog</a>
               <a href="#footer">Privacy Policy</a>
               <a href="#footer">Terms of Service</a>
             </div>
@@ -573,9 +513,7 @@ export default function Storefront() {
 
           <div className="footer-bottom">
             <span>© 2026 Velfrok. All rights reserved.</span>
-            <span>
-              Better living. Useful everyday essentials.
-            </span>
+            <span>Better living. Useful everyday essentials.</span>
           </div>
         </div>
       </footer>
@@ -626,10 +564,7 @@ export default function Storefront() {
             ) : (
               <>
                 {cart.map((item) => (
-                  <div
-                    className="cart-line"
-                    key={item.product.id}
-                  >
+                  <div className="cart-line" key={item.product.id}>
                     <img
                       src={item.product.image}
                       alt={item.product.name}
@@ -641,9 +576,7 @@ export default function Storefront() {
 
                       <div className="qty">
                         <button
-                          onClick={() =>
-                            adjust(item.product.id, -1)
-                          }
+                          onClick={() => adjust(item.product.id, -1)}
                           aria-label="Decrease quantity"
                         >
                           <Minus size={13} />
@@ -652,9 +585,7 @@ export default function Storefront() {
                         <span>{item.quantity}</span>
 
                         <button
-                          onClick={() =>
-                            adjust(item.product.id, 1)
-                          }
+                          onClick={() => adjust(item.product.id, 1)}
                           aria-label="Increase quantity"
                         >
                           <Plus size={13} />
@@ -691,9 +622,8 @@ export default function Storefront() {
                   </button>
 
                   <p className="notice">
-                    Your final payable amount will be calculated
-                    securely by the server. This demo cart does not
-                    collect payment yet.
+                    Your final payable amount will be calculated securely
+                    by the server. This demo cart does not collect payment yet.
                   </p>
                 </div>
               </>
@@ -715,23 +645,26 @@ function ProductCard({
   return (
     <article className="product">
       <div className="product-image">
-        <img
-          src={product.image}
-          alt={product.name}
-          loading="lazy"
-        />
+        {product.image ? (
+          <img
+            src={product.image}
+            alt={product.name}
+            loading="lazy"
+          />
+        ) : (
+          <div className="empty">Image coming soon</div>
+        )}
         <span className="discount">{product.badge}</span>
       </div>
 
       <div className="product-info">
         <h3>{product.name}</h3>
-        <div className="rating">
-          ★★★★★ <small>({product.reviews})</small>
-        </div>
 
         <div className="price-row">
           <span className="price">{money(product.price)}</span>
-          <span className="mrp">{money(product.mrp)}</span>
+          {product.mrp > product.price && (
+            <span className="mrp">{money(product.mrp)}</span>
+          )}
         </div>
 
         <button className="add" onClick={onAdd}>
@@ -748,7 +681,7 @@ function Service({
   title,
   sub,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   title: string;
   sub: string;
 }) {
