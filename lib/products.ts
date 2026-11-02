@@ -1,4 +1,3 @@
-
 import { supabaseBrowser } from "@/lib/supabase";
 
 export type Product = {
@@ -24,7 +23,10 @@ export async function getProducts(): Promise<Product[]> {
       mrp,
       selling_price,
       discount_pct,
-      images
+      images,
+      categories (
+        name
+      )
     `)
     .eq("is_active", true)
     .order("created_at", { ascending: false });
@@ -46,13 +48,17 @@ export async function getProducts(): Promise<Product[]> {
           ? firstImage.url || firstImage.src || ""
           : "";
 
+    const category = Array.isArray(item.categories)
+      ? item.categories[0]?.name
+      : item.categories?.name;
+
     return {
       id: item.id,
       name: item.name,
-      category: "Everyday Essentials",
+      category: category || "Uncategorized",
       price: Number(item.selling_price || 0),
       mrp: Number(item.mrp || 0),
-      rating: "5.0",
+      rating: "",
       reviews: "New",
       image,
       badge:
