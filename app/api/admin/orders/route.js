@@ -1,17 +1,12 @@
 
 import { supabaseAdmin } from "@/lib/supabase";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdmin, supabaseForUser } from "@/lib/auth";
 import { auditLog } from "@/lib/audit";
 import { clean } from "@/lib/sanitize";
 import { rateLimit, clientIp } from "@/lib/rate-limit";
 
-const ORDER_STATUSES = [
-  "placed",
-  "packed",
-  "dispatched",
-  "delivered",
-  "cancelled",
-];
+const PAYMENT_STATUSES = ["accepted", "rejected"];
+const FULFILLMENT_STATUSES = ["pending", "packed", "shipped", "delivered"];
 
 export async function GET(req) {
   try {
@@ -22,11 +17,12 @@ export async function GET(req) {
 
     const { data, error: dbError } = await supabaseAdmin()
       .from("orders")
-      .select("*, payment_intents(token,status,utr,expires_at)")
+      .select("*, order_items(*)")
       .order("created_at", { ascending: false })
       .limit(200);
 
     if (dbError) {
+      console.error("Admin order lookup failed:", dbError);
       return Response.json(
         { error: "Could not load orders" },
         { status: 500 }
@@ -40,10 +36,8 @@ export async function GET(req) {
   } catch (error) {
     if (error instanceof Response) return error;
 
-    return Response.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    console.error("Admin orders GET failed:", error);
+    return Response.json({ error: "Server error" }, { status: 500 });
   }
 }
 
@@ -55,7 +49,6 @@ export async function PATCH(req) {
     await rateLimit(`admin-orders-patch:${user.id}`, 30, 60);
 
     let body;
-
     try {
       body = await req.json();
     } catch {
@@ -67,68 +60,97 @@ export async function PATCH(req) {
 
     const id = clean(body?.orderId, 36).toLowerCase();
     const paymentStatus = body?.paymentStatus;
-    const orderStatus = body?.orderStatus;
+    const fulfillmentStatus = body?.fulfillmentStatus;
 
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id)) {
-      return Response.json(
-        { error: "Invalid order ID" },
-        { status: 400 }
-      );
+    if (
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id)
+    ) {
+      return Response.json({ error: "Invalid order ID" }, { status: 400 });
     }
 
-    // Payment confirmation must use one database transaction.
-    // Do not mark an order paid through separate API updates.
-    if (paymentStatus === "paid") {
+    // Do not combine two independent state transitions in one request.
+    if (
+      paymentStatus !== undefined &&
+      fulfillmentStatus !== undefined
+    ) {
       return Response.json(
-        {
-          error: "Paid confirmation is temporarily disabled until atomic payment and stock processing is installed."
-        },
-        { status: 503 }
+        { error: "Update payment and fulfillment separately" },
+        { status: 400 }
       );
     }
 
     if (
       paymentStatus !== undefined &&
-      !["failed"].includes(paymentStatus)
+      !PAYMENT_STATUSES.includes(paymentStatus)
     ) {
       return Response.json(
-        { error: "Invalid payment status" },
+        { error: "Payment status must be accepted or rejected" },
         { status: 400 }
       );
     }
 
     if (
-      orderStatus !== undefined &&
-      !ORDER_STATUSES.includes(orderStatus)
+      fulfillmentStatus !== undefined &&
+      !FULFILLMENT_STATUSES.includes(fulfillmentStatus)
     ) {
       return Response.json(
-        { error: "Invalid order status" },
+        { error: "Invalid fulfillment status" },
         { status: 400 }
       );
     }
 
-    const patch = {};
-
-    if (paymentStatus !== undefined) {
-      patch.payment_status = paymentStatus;
-    }
-
-    if (orderStatus !== undefined) {
-      patch.status = orderStatus;
-    }
-
-    if (Object.keys(patch).length === 0) {
+    if (
+      paymentStatus === undefined &&
+      fulfillmentStatus === undefined
+    ) {
       return Response.json(
         { error: "Nothing to update" },
         { status: 400 }
       );
     }
 
+    // Payment decisions must go through database functions using
+    // the administrator's actual JWT, so auth.uid() is preserved.
+    if (paymentStatus !== undefined) {
+      const userDb = supabaseForUser(req);
+
+      const functionName =
+        paymentStatus === "accepted"
+          ? "confirm_order_payment"
+          : "reject_order_payment";
+
+      const { data, error: rpcError } = await userDb.rpc(functionName, {
+        p_order_id: id,
+      });
+
+      if (rpcError) {
+        console.error("Payment decision RPC failed:", rpcError);
+        return Response.json(
+          { error: "Payment decision failed. Refresh and verify the order." },
+          { status: 409 }
+        );
+      }
+
+      try {
+        await auditLog(
+          user.email || user.id,
+          `order.payment.${paymentStatus}`,
+          { id, result: data },
+          clientIp(req)
+        );
+      } catch (auditError) {
+        console.error("Admin audit logging failed:", auditError);
+      }
+
+      return Response.json({ ok: true, result: data });
+    }
+
+    // Fulfillment changes are separate from payment decisions.
     const db = supabaseAdmin();
 
     const { data: existing, error: lookupError } = await db
       .from("orders")
-      .select("id,payment_status,status")
+      .select("id,payment_status,fulfillment_status")
       .eq("id", id)
       .maybeSingle();
 
@@ -140,41 +162,38 @@ export async function PATCH(req) {
     }
 
     if (!existing) {
-      return Response.json(
-        { error: "Order not found" },
-        { status: 404 }
-      );
+      return Response.json({ error: "Order not found" }, { status: 404 });
     }
 
-    // Never overwrite a paid order through this endpoint.
     if (
-      existing.payment_status === "paid" &&
-      paymentStatus !== undefined
+      fulfillmentStatus !== "pending" &&
+      existing.payment_status !== "accepted"
     ) {
       return Response.json(
-        { error: "Paid orders cannot be changed through this endpoint" },
+        { error: "Payment must be accepted before fulfillment can advance" },
         { status: 409 }
       );
     }
 
     const { data: updated, error: updateError } = await db
       .from("orders")
-      .update(patch)
+      .update({ fulfillment_status: fulfillmentStatus })
       .eq("id", id)
-      .neq("payment_status", "paid")
-      .select("id")
+      .eq("fulfillment_status", existing.fulfillment_status)
+      .select("id,fulfillment_status")
       .maybeSingle();
 
     if (updateError) {
+      console.error("Fulfillment update failed:", updateError);
       return Response.json(
-        { error: "Order update failed" },
+        { error: "Fulfillment update failed" },
         { status: 500 }
       );
     }
 
     if (!updated) {
       return Response.json(
-        { error: "Order changed or is already paid. Refresh and try again." },
+        { error: "Order changed. Refresh and try again." },
         { status: 409 }
       );
     }
@@ -182,23 +201,19 @@ export async function PATCH(req) {
     try {
       await auditLog(
         user.email || user.id,
-        "order.update",
-        { id, ...patch },
+        "order.fulfillment.update",
+        { id, fulfillmentStatus },
         clientIp(req)
       );
     } catch (auditError) {
       console.error("Admin audit logging failed:", auditError);
     }
 
-    return Response.json({ ok: true });
+    return Response.json({ ok: true, order: updated });
   } catch (error) {
     if (error instanceof Response) return error;
 
     console.error("Admin order update failed:", error);
-
-    return Response.json(
-      { error: "Server error" },
-      { status: 500 }
-    );
+    return Response.json({ error: "Server error" }, { status: 500 });
   }
 }
