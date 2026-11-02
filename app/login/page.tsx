@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -9,25 +10,73 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    const supabase = supabaseBrowser();
+    let active = true;
 
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) {
-        router.replace("/");
+    async function handleCallback() {
+      const supabase = supabaseBrowser();
+      const url = new URL(window.location.href);
+      const code = url.searchParams.get("code");
+      const tokenHash = url.searchParams.get("token_hash");
+      const type = url.searchParams.get("type");
+
+      try {
+        if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+
+          if (error) throw error;
+
+          window.history.replaceState({}, "", "/login");
+          router.replace("/");
+          return;
+        }
+
+        if (tokenHash && type === "email") {
+          const { error } = await supabase.auth.verifyOtp({
+            token_hash: tokenHash,
+            type: "email",
+          });
+
+          if (error) throw error;
+
+          window.history.replaceState({}, "", "/login");
+          router.replace("/");
+          return;
+        }
+
+        const { data, error } = await supabase.auth.getSession();
+
+        if (error) throw error;
+
+        if (data.session) {
+          router.replace("/");
+          return;
+        }
+
+        if (active) {
+          setChecking(false);
+        }
+      } catch (error) {
+        console.error("Login callback failed:", error);
+
+        if (active) {
+          setMessage(
+            error instanceof Error
+              ? error.message
+              : "Verification failed. Please request a new login link."
+          );
+          setChecking(false);
+        }
       }
-    });
+    }
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
-        router.replace("/");
-      }
-    });
+    handleCallback();
 
-    return () => subscription.unsubscribe();
+    return () => {
+      active = false;
+    };
   }, [router]);
 
   async function sendLoginLink(event: React.FormEvent<HTMLFormElement>) {
@@ -49,7 +98,7 @@ export default function LoginPage() {
         setMessage(error.message);
       } else {
         setMessage(
-          "Check your email for the secure sign-in link. You can return here after opening it."
+          "Check your email for your secure sign-in link."
         );
       }
     } catch {
@@ -57,6 +106,14 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (checking) {
+    return (
+      <main style={{ padding: 40, textAlign: "center" }}>
+        Checking your login...
+      </main>
+    );
   }
 
   return (
@@ -78,14 +135,7 @@ export default function LoginPage() {
           background: "#fff",
         }}
       >
-        <a
-          href="/"
-          style={{
-            color: "#426653",
-            fontWeight: 700,
-            textDecoration: "none",
-          }}
-        >
+        <a href="/" style={{ color: "#426653", fontWeight: 700 }}>
           ← Velfrok
         </a>
 
@@ -98,10 +148,7 @@ export default function LoginPage() {
         </p>
 
         <form onSubmit={sendLoginLink}>
-          <label
-            htmlFor="email"
-            style={{ display: "block", margin: "20px 0 8px" }}
-          >
+          <label htmlFor="email" style={{ display: "block", margin: "20px 0 8px" }}>
             Email address
           </label>
 
@@ -136,7 +183,6 @@ export default function LoginPage() {
               color: "#fff",
               fontWeight: 700,
               fontSize: 16,
-              cursor: loading ? "wait" : "pointer",
             }}
           >
             {loading ? "Sending link..." : "Send sign-in link"}
@@ -156,11 +202,6 @@ export default function LoginPage() {
             {message}
           </p>
         )}
-
-        <p style={{ marginTop: 20, fontSize: 13, color: "#777" }}>
-          Your login session can remain active when you return to Velfrok.
-          Use Logout when you want to end it.
-        </p>
       </section>
     </main>
   );
