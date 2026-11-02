@@ -1,45 +1,46 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
 import HCaptcha from "@hcaptcha/react-hcaptcha";
+import { supabaseBrowser } from "@/lib/supabase";
 
 const UPI_ID = process.env.NEXT_PUBLIC_UPI_ID;
-const NAME = process.env.NEXT_PUBLIC_UPI_NAME;
+const UPI_NAME = process.env.NEXT_PUBLIC_UPI_NAME;
 
 export default function PaymentPage({ params }) {
-  const token = params.token;
+  const orderId = params.token;
 
-  const [status, setStatus] = useState("loading");
-  const [amount, setAmount] = useState(null);
+  const [order, setOrder] = useState(null);
   const [utr, setUtr] = useState("");
   const [captcha, setCaptcha] = useState("");
-  const [msg, setMsg] = useState("");
-  const [err, setErr] = useState("");
-  const [secs, setSecs] = useState(1200);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
 
-  // Countdown timer.
-  useEffect(() => {
-    if (secs <= 0 || status === "paid" || status === "expired") {
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      setSecs((current) => Math.max(0, current - 1));
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, [secs, status]);
-
-  // Fetch payment status and amount from the server.
   useEffect(() => {
     let active = true;
-    let interval;
+    let timer;
 
     async function checkStatus() {
       try {
+        const {
+          data: { session },
+        } = await supabaseBrowser().auth.getSession();
+
+        if (!session?.access_token) {
+          if (active) setError("Please sign in to view this order.");
+          return;
+        }
+
         const response = await fetch(
-          `/api/payment/status?token=${encodeURIComponent(token)}`,
-          { cache: "no-store" }
+          `/api/payment/status?orderId=${encodeURIComponent(orderId)}`,
+          {
+            cache: "no-store",
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+            },
+          }
         );
 
         const result = await response.json();
@@ -47,70 +48,66 @@ export default function PaymentPage({ params }) {
         if (!active) return;
 
         if (!response.ok) {
-          setErr(result.error || "Unable to check payment status.");
+          setError(result.error || "Unable to retrieve payment status.");
           return;
         }
 
-        setStatus(result.status);
-
-        if (Number.isFinite(Number(result.amount))) {
-          setAmount(Number(result.amount));
-        }
-
-        if (result.status === "paid") {
-          setMsg("Payment confirmed!");
-        }
+        setOrder(result);
+        setError("");
 
         if (
-          result.status === "paid" ||
-          result.status === "expired" ||
-          result.status === "not_found"
+          result.paymentStatus === "accepted" ||
+          result.paymentStatus === "rejected"
         ) {
-          clearInterval(interval);
+          clearInterval(timer);
         }
       } catch {
-        if (active) {
-          setErr("Could not check payment status. Please try again.");
-        }
+        if (active) setError("Unable to check your order. Please try again.");
       }
     }
 
     checkStatus();
-    interval = setInterval(checkStatus, 3000);
+    timer = setInterval(checkStatus, 5000);
 
     return () => {
       active = false;
-      clearInterval(interval);
+      clearInterval(timer);
     };
-  }, [token]);
+  }, [orderId]);
 
   const upiLink =
-    amount !== null && UPI_ID
+    order && UPI_ID && order.paymentStatus === "pending_utr"
       ? `upi://pay?pa=${encodeURIComponent(UPI_ID)}&pn=${encodeURIComponent(
-          NAME || "Velfrok"
-        )}&am=${amount.toFixed(2)}&cu=INR&tn=${encodeURIComponent(
-          `Velfrok ${token.slice(0, 8)}`
+          UPI_NAME || "Velfrok"
+        )}&am=${Number(order.amount).toFixed(2)}&cu=INR&tn=${encodeURIComponent(
+          `Velfrok ${order.orderNumber}`
         )}`
       : null;
 
   async function submitUtr(event) {
     event.preventDefault();
-    setErr("");
-    setMsg("");
+    setError("");
+    setMessage("");
 
-    if (!utr.trim() || !captcha) {
-      setErr("Enter your UTR and complete the captcha.");
+    if (!/^[0-9]{12}$/.test(utr.trim())) {
+      setError("Enter a valid 12-digit UTR number.");
       return;
     }
 
+    if (!captcha) {
+      setError("Please complete the CAPTCHA.");
+      return;
+    }
+
+    setBusy(true);
+
     try {
-      const { supabaseBrowser } = await import("@/lib/supabase");
       const {
         data: { session },
       } = await supabaseBrowser().auth.getSession();
 
       if (!session?.access_token) {
-        setErr("Please sign in again before submitting your UTR.");
+        setError("Please sign in again before submitting your UTR.");
         return;
       }
 
@@ -121,7 +118,7 @@ export default function PaymentPage({ params }) {
           Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
-          token,
+          orderId,
           utr: utr.trim(),
           captcha,
         }),
@@ -130,96 +127,130 @@ export default function PaymentPage({ params }) {
       const result = await response.json();
 
       if (!response.ok) {
-        setErr(result.error || "Unable to submit UTR.");
+        setError(result.error || "Unable to submit your UTR.");
         return;
       }
 
-      setMsg(result.message || "UTR submitted for verification.");
-      setStatus("utr_submitted");
+      setMessage(result.message || "UTR submitted for verification.");
+      setUtr("");
+      setCaptcha("");
+
+      const statusResponse = await fetch(
+        `/api/payment/status?orderId=${encodeURIComponent(orderId)}`,
+        {
+          cache: "no-store",
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        }
+      );
+
+      const statusResult = await statusResponse.json();
+
+      if (statusResponse.ok) setOrder(statusResult);
     } catch {
-      setErr("Unable to submit your UTR. Please try again.");
+      setError("Unable to submit your UTR. Please try again.");
+    } finally {
+      setBusy(false);
     }
   }
 
-  const isExpired = status === "expired" || secs <= 0;
-
   return (
     <main className="pay">
-      <h1>
-        {amount === null ? "Loading payment…" : `Pay ₹${amount.toFixed(2)}`}
-      </h1>
+      <h1>Velfrok Payment</h1>
 
-      {status === "loading" && <p>Checking payment details…</p>}
+      {!order && !error && <p>Loading order details...</p>}
 
-      {status !== "paid" && !isExpired && (
-        <p>
-          ⏱ Payment page expires in {Math.floor(secs / 60)}:
-          {String(secs % 60).padStart(2, "0")}
-        </p>
-      )}
-
-      {isExpired && (
-        <p className="err">
-          Payment page expired — please place the order again.
-        </p>
-      )}
-
-      {upiLink && status === "opened" && !isExpired && (
+      {order && (
         <>
-          <img
-            src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(
-              upiLink
-            )}`}
-            alt="UPI payment QR code"
-            width={220}
-            height={220}
-          />
-
           <p>
-            Or pay to UPI ID: <strong>{UPI_ID}</strong>
+            Order: <strong>{order.orderNumber}</strong>
           </p>
 
-          <p className="note">
-            Reference code:{" "}
-            <strong>{token.slice(0, 8).toUpperCase()}</strong>
-          </p>
+          <h2>Amount: ₹{Number(order.amount).toFixed(2)}</h2>
+
+          {order.paymentStatus === "pending_utr" && (
+            <>
+              <p>Complete your UPI payment using the details below.</p>
+
+              {upiLink && (
+                <>
+                  <a href={upiLink}>
+                    <button type="button">Pay with UPI app</button>
+                  </a>
+
+                  <p>
+                    UPI ID: <strong>{UPI_ID}</strong>
+                  </p>
+
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(
+                      upiLink
+                    )}`}
+                    alt="UPI payment QR code"
+                    width={220}
+                    height={220}
+                  />
+                </>
+              )}
+
+              {!UPI_ID && (
+                <p>UPI payment details are not configured yet.</p>
+              )}
+
+              <form onSubmit={submitUtr}>
+                <label htmlFor="utr">12-digit UTR number</label>
+                <input
+                  id="utr"
+                  inputMode="numeric"
+                  maxLength={12}
+                  value={utr}
+                  onChange={(event) =>
+                    setUtr(event.target.value.replace(/\D/g, "").slice(0, 12))
+                  }
+                  placeholder="Enter UTR number"
+                  required
+                />
+
+                <HCaptcha
+                  sitekey={process.env.NEXT_PUBLIC_HCAPTCHA_SITEKEY}
+                  onVerify={setCaptcha}
+                  onExpire={() => setCaptcha("")}
+                  onError={() => setCaptcha("")}
+                />
+
+                <button type="submit" disabled={busy || !captcha}>
+                  {busy ? "Submitting..." : "Submit UTR"}
+                </button>
+              </form>
+
+              <p>
+                You can submit your UTR later. Your payment is not confirmed
+                until Velfrok verifies it.
+              </p>
+            </>
+          )}
+
+          {order.paymentStatus === "pending_verification" && (
+            <p>UTR received. Your payment is waiting for verification.</p>
+          )}
+
+          {order.paymentStatus === "accepted" && (
+            <p className="ok">
+              Payment verified. Your order is confirmed.
+            </p>
+          )}
+
+          {order.paymentStatus === "rejected" && (
+            <p className="err">
+              Payment was rejected. Please contact Velfrok support.
+            </p>
+          )}
         </>
       )}
 
-      {status === "utr_submitted" && (
-        <div className="ok">✅ Received! Verifying shortly…</div>
-      )}
-
-      {status === "paid" && (
-        <div className="ok big">
-          🎉 Payment confirmed — your order is being packed!
-        </div>
-      )}
-
-      {status === "opened" && !isExpired && (
-        <form onSubmit={submitUtr}>
-          <input
-            value={utr}
-            onChange={(event) => setUtr(event.target.value)}
-            placeholder="Enter UPI Transaction ID (UTR)"
-            required
-          />
-
-          <HCaptcha
-            sitekey={process.env.NEXT_PUBLIC_HCAPTCHA_SITEKEY}
-            onVerify={setCaptcha}
-            onExpire={() => setCaptcha("")}
-            onError={() => setCaptcha("")}
-          />
-
-          <button type="submit" disabled={!captcha || !utr.trim()}>
-            I have paid — Submit UTR
-          </button>
-        </form>
-      )}
-
-      {msg && <p className="ok">{msg}</p>}
-      {err && <p className="err" role="alert">{err}</p>}
+      {message && <p className="ok">{message}</p>}
+      {error && <p className="err" role="alert">{error}</p>}
     </main>
   );
 }
