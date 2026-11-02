@@ -43,7 +43,7 @@ export default function Storefront() {
   const shown = useMemo(() => products.filter(p =>
     (category === "All" || p.category === category) &&
     `${p.name} ${p.category} ${p.id}`.toLowerCase().includes(query.toLowerCase())
-  ), [category, query]);
+  ), [products, category, query]);
 
   const count = cart.reduce((sum, item) => sum + item.quantity, 0);
   const subtotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
