@@ -1,10 +1,10 @@
+
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
 import {
   Search,
   ShoppingCart,
-  UserRound,
   Heart,
   Menu,
   ArrowRight,
@@ -31,9 +31,8 @@ import {
 } from "lucide-react";
 
 import { getProducts, type Product } from "@/lib/products";
-import { useRouter } from "next/navigation";
+import AuthStatus from "@/components/auth-status";
 import { storeConfig } from "@/lib/store-config";
-import { supabaseBrowser } from "@/lib/supabase";
 
 type CartItem = {
   product: Product;
@@ -62,8 +61,6 @@ export default function Storefront() {
   const [products, setProducts] = useState<Product[]>([]);
   const [productsLoading, setProductsLoading] = useState(true);
   const [productError, setProductError] = useState("");
-  const router = useRouter();
-  const [loggedIn, setLoggedIn] = useState(false);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All");
 
@@ -74,21 +71,6 @@ export default function Storefront() {
   const [subscribed, setSubscribed] = useState(false);
 
   // Load products safely from Supabase.
-  useEffect(() => {
-  const supabase = supabaseBrowser();
-
-  supabase.auth.getSession().then(({ data }) => {
-    setLoggedIn(Boolean(data.session));
-  });
-
-  const {
-    data: { subscription },
-  } = supabase.auth.onAuthStateChange((_event, session) => {
-    setLoggedIn(Boolean(session));
-  });
-
-  return () => subscription.unsubscribe();
-}, []);
   useEffect(() => {
     let cancelled = false;
 
@@ -207,28 +189,8 @@ export default function Storefront() {
             </button>
           </form>
 
-         <div className="header-actions">
-           <button
-  className="header-action"
-  onClick={async () => {
-    if (loggedIn) {
-      const supabase = supabaseBrowser();
-      const { error } = await supabase.auth.signOut();
-
-      if (error) {
-        alert("Logout failed. Please try again.");
-        return;
-      }
-
-      setLoggedIn(false);
-    } else {
-      window.location.href = "/login";
-    }
-  }}
->
-  <UserRound size={20} />
-  {loggedIn ? "Logout" : "Login"}
-</button>
+          <div className="header-actions">
+            <AuthStatus />
 
             <button
               className="header-action"
