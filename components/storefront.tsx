@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   Search,
   ShoppingCart,
@@ -35,7 +35,14 @@ type CartItem = {
   quantity: number;
 };
 
+type StoredCartItem = {
+  productId: string;
+  quantity: number;
+};
+
 type Collection = "all" | "new" | "home" | "tech";
+
+const CART_STORAGE_KEY = "velfrok-cart-v1";
 
 const categories = [
   { name: "Electronics", icon: Monitor, color: "#e0edf0" },
@@ -65,6 +72,8 @@ export default function Storefront() {
 
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
+  const [cartHydrated, setCartHydrated] = useState(false);
+  const cartRestoreAttempted = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -95,6 +104,93 @@ export default function Storefront() {
       cancelled = true;
     };
   }, []);
+
+  // Restore saved product IDs and quantities after active products load.
+  // Prices and other product details always come from Supabase.
+  useEffect(() => {
+    if (productsLoading || cartRestoreAttempted.current) return;
+
+    cartRestoreAttempted.current = true;
+
+    try {
+      const saved = localStorage.getItem(CART_STORAGE_KEY);
+
+      if (saved) {
+        const parsed: unknown = JSON.parse(saved);
+
+        if (Array.isArray(parsed)) {
+          const restored: CartItem[] = [];
+          const quantities = new Map<string, number>();
+
+          for (const item of parsed) {
+            if (
+              !item ||
+              typeof item.productId !== "string" ||
+              !Number.isInteger(item.quantity) ||
+              item.quantity < 1 ||
+              item.quantity > 10
+            ) {
+              continue;
+            }
+
+            const product = products.find(
+              (candidate) => candidate.id === item.productId
+            );
+
+            if (!product) continue;
+
+            const combined =
+              (quantities.get(item.productId) || 0) + item.quantity;
+
+            if (combined > 10) continue;
+
+            quantities.set(item.productId, combined);
+          }
+
+          for (const [productId, quantity] of quantities) {
+            const product = products.find(
+              (candidate) => candidate.id === productId
+            );
+
+            if (product) {
+              restored.push({ product, quantity });
+            }
+          }
+
+          setCart(restored);
+        }
+      }
+    } catch (error) {
+      console.error("Could not restore saved cart:", error);
+
+      try {
+        localStorage.removeItem(CART_STORAGE_KEY);
+      } catch {
+        // Browser storage may be unavailable.
+      }
+    }
+
+    setCartHydrated(true);
+  }, [productsLoading, products]);
+
+  // Persist only IDs and quantities, never prices or other trusted data.
+  useEffect(() => {
+    if (!cartHydrated) return;
+
+    try {
+      const storedCart: StoredCartItem[] = cart.map((item) => ({
+        productId: item.product.id,
+        quantity: item.quantity,
+      }));
+
+      localStorage.setItem(
+        CART_STORAGE_KEY,
+        JSON.stringify(storedCart)
+      );
+    } catch (error) {
+      console.error("Could not save cart:", error);
+    }
+  }, [cart, cartHydrated]);
 
   const filteredProducts = useMemo(() => {
     const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
@@ -150,6 +246,8 @@ export default function Storefront() {
       );
 
       if (existing) {
+        if (existing.quantity >= 10) return current;
+
         return current.map((item) =>
           item.product.id === product.id
             ? { ...item, quantity: item.quantity + 1 }
@@ -166,7 +264,10 @@ export default function Storefront() {
       current
         .map((item) =>
           item.product.id === id
-            ? { ...item, quantity: item.quantity + delta }
+            ? {
+                ...item,
+                quantity: Math.min(10, item.quantity + delta),
+              }
             : item
         )
         .filter((item) => item.quantity > 0)
@@ -565,10 +666,14 @@ export default function Storefront() {
               <>
                 {cart.map((item) => (
                   <div className="cart-line" key={item.product.id}>
-                    <img
-                      src={item.product.image}
-                      alt={item.product.name}
-                    />
+                    {item.product.image ? (
+                      <img
+                        src={item.product.image}
+                        alt={item.product.name}
+                      />
+                    ) : (
+                      <div className="empty">No image</div>
+                    )}
 
                     <div className="cart-line-main">
                       <strong>{item.product.name}</strong>
@@ -587,6 +692,7 @@ export default function Storefront() {
                         <button
                           onClick={() => adjust(item.product.id, 1)}
                           aria-label="Increase quantity"
+                          disabled={item.quantity >= 10}
                         >
                           <Plus size={13} />
                         </button>
