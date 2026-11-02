@@ -207,7 +207,8 @@ export default function Storefront() {
             </button>
           </form>
 
-          <button
+         <div className="header-actions">
+           <button
   className="header-action"
   onClick={async () => {
     if (loggedIn) {
