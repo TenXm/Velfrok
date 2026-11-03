@@ -90,8 +90,8 @@ export default function AdminPage() {
     if (listError) throw listError;
 
     const pending = factors.totp.find(
-      (factor) => factor.status === "unverified"
-    );
+  (factor) => (factor.status as string) === "unverified"
+);
 
     if (pending) {
       const { error } = await supabase.auth.mfa.unenroll({
