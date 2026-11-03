@@ -1,4 +1,3 @@
-
 import { Webhook } from "standardwebhooks";
 
 export const runtime = "nodejs";
@@ -7,10 +6,11 @@ export async function POST(req) {
   try {
     const hookSecret = process.env.SEND_EMAIL_HOOK_SECRET;
     const resendKey = process.env.RESEND_API_KEY;
+    const testRecipient = process.env.RESEND_TEST_RECIPIENT;
     const fromEmail =
       process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
 
-    if (!hookSecret || !resendKey) {
+    if (!hookSecret || !resendKey || !testRecipient) {
       return Response.json(
         { error: "Server configuration missing." },
         { status: 500 }
@@ -44,22 +44,29 @@ export async function POST(req) {
       );
     }
 
-    const response = await fetch(
-      "https://api.resend.com/emails",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${resendKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          from: fromEmail,
-          to: [email],
-          subject: "Your Velfrok verification code",
-          text: `Your Velfrok verification code is: ${token}\n\nIf you did not request this code, please ignore this email.`,
-        }),
-      }
-    );
+    if (
+      email.trim().toLowerCase() !==
+      testRecipient.trim().toLowerCase()
+    ) {
+      return Response.json(
+        { error: "Only the configured test recipient is allowed." },
+        { status: 403 }
+      );
+    }
+
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${resendKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: fromEmail,
+        to: [testRecipient],
+        subject: "Your Velfrok verification code",
+        text: `Your Velfrok verification code is: ${token}\n\nIf you did not request this code, please ignore this email.`,
+      }),
+    });
 
     if (!response.ok) {
       console.error("Resend email delivery failed:", response.status);
