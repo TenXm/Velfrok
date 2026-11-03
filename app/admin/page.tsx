@@ -90,8 +90,8 @@ export default function AdminPage() {
     if (listError) throw listError;
 
     const pending = factors.totp.find(
-  (factor) => (factor.status as string) === "unverified"
-);
+      (factor) => (factor.status as string) === "unverified"
+    );
 
     if (pending) {
       const { error } = await supabase.auth.mfa.unenroll({
@@ -443,7 +443,11 @@ export default function AdminPage() {
           <section className="panel">
             <h1>Sign in to Velfrok</h1>
             <p>You must sign in before accessing the Admin Dashboard.</p>
-            <a className="button" href="/login" style={{ display: "block", textDecoration: "none" }}>
+            <a
+              className="button"
+              href="/login?next=%2Fadmin"
+              style={{ display: "block", textDecoration: "none" }}
+            >
               Sign in
             </a>
           </section>
@@ -598,4 +602,4 @@ export default function AdminPage() {
       </div>
     </main>
   );
-                      }
+}
