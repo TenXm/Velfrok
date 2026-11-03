@@ -103,7 +103,7 @@ export default function AdminPage() {
 
     const { data, error } = await supabase.auth.mfa.enroll({
       factorType: "totp",
-      friendlyName: "Velfrok Admin Authenticator",
+      friendlyName: `Velfrok Admin Authenticator ${Date.now()}`,
     });
 
     if (error) throw error;
