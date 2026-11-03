@@ -5,6 +5,19 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase";
 
+function safeNextPath(value: string | null) {
+  if (
+    !value ||
+    !value.startsWith("/") ||
+    value.startsWith("//") ||
+    value.startsWith("/\\")
+  ) {
+    return "/";
+  }
+
+  return value;
+}
+
 export default function LoginPage() {
   const router = useRouter();
 
@@ -24,6 +37,7 @@ export default function LoginPage() {
       const code = url.searchParams.get("code");
       const tokenHash = url.searchParams.get("token_hash");
       const type = url.searchParams.get("type");
+      const nextPath = safeNextPath(url.searchParams.get("next"));
 
       try {
         // Support previously issued magic links.
@@ -34,7 +48,7 @@ export default function LoginPage() {
           if (error) throw error;
 
           window.history.replaceState({}, "", "/login");
-          router.replace("/");
+          router.replace(nextPath);
           return;
         }
 
@@ -47,7 +61,7 @@ export default function LoginPage() {
           if (error) throw error;
 
           window.history.replaceState({}, "", "/login");
-          router.replace("/");
+          router.replace(nextPath);
           return;
         }
 
@@ -56,7 +70,7 @@ export default function LoginPage() {
         if (error) throw error;
 
         if (data.session) {
-          router.replace("/");
+          router.replace(nextPath);
           return;
         }
 
@@ -130,7 +144,11 @@ export default function LoginPage() {
       if (error) {
         setMessage(error.message);
       } else {
-        router.replace("/");
+        const nextPath = safeNextPath(
+          new URL(window.location.href).searchParams.get("next")
+        );
+
+        router.replace(nextPath);
       }
     } catch {
       setMessage("Code verification failed. Please try again.");
