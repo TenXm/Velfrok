@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabaseBrowser } from "@/lib/supabase";
+import { supabaseAdminBrowser } from "@/lib/supabase-admin-browser";
 
 function readClaims(token: string) {
   try { return JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))); }
@@ -17,7 +17,7 @@ export default function AdminLoginPage() {
   const [step, setStep] = useState<"password" | "otp">("password");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  const supabase = useMemo(() => supabaseBrowser(), []);
+  const supabase = useMemo(() => supabaseAdminBrowser(), []);
 
   useEffect(() => {
     let active = true;
