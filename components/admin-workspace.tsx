@@ -102,6 +102,8 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
   const [orderSearch, setOrderSearch] = useState("");
   const [stockFilter, setStockFilter] = useState("all");
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
+  const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
+  const [invoiceBusy, setInvoiceBusy] = useState(false);
   const [stockMode, setStockMode] = useState("add");
   const [stockAmount, setStockAmount] = useState("1");
   const [orderEdits, setOrderEdits] = useState<Record<string, { payment: string; fulfillment: string }>>({});
@@ -295,6 +297,43 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
     finally { setBusy(false); }
   };
 
+  const downloadInvoices = async (format: "zip" | "combined") => {
+    if (!selectedOrders.length) { setError("Select at least one order first."); return; }
+    if (selectedOrders.length > 50) { setError("You can generate invoices for up to 50 orders at a time."); return; }
+    setInvoiceBusy(true); setError(""); setMessage("");
+    try {
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      const token = sessionData.session?.access_token || accessToken;
+      if (!token) throw new Error("Your admin session expired. Sign in again.");
+      const response = await fetch("/api/admin/invoices", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ orderIds: selectedOrders, format }),
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        throw new Error(result.error || "Could not generate invoices.");
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = format === "zip" ? "velfrok-invoices.zip" : "velfrok-invoices-combined.pdf";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1500);
+      setMessage(`Invoice download started for ${selectedOrders.length} order(s).`);
+      setSelectedOrders([]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Invoice generation failed.");
+    } finally {
+      setInvoiceBusy(false);
+    }
+  };
+
   const runCodAction = async (order: AnyRow, action: "accept_cod" | "reject_cod" | "collect_cod") => {
     setBusy(true); setError(""); setMessage("");
     try {
@@ -405,10 +444,20 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
 
     {tab === "orders" && <div className="admin-card">
       <div className="section-head"><h2>Order management</h2><div className="inline-actions"><input style={{width:220}} value={orderSearch} onChange={e => setOrderSearch(e.target.value)} placeholder="Search order / customer"/><button className="secondary" onClick={() => downloadCsv(filteredOrders)}>Export CSV</button></div></div>
-      {filteredOrders.length === 0 ? <p>No matching orders.</p> : <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>Order / Customer</th><th>Items</th><th>Payment / Acceptance</th><th>Fulfilment</th><th>Amount</th><th>Update</th></tr></thead><tbody>{filteredOrders.map(o => {
+      <div className="inline-actions" style={{margin:"12px 0",justifyContent:"space-between"}}>
+        <label style={{display:"flex",alignItems:"center",gap:8,margin:0}}>
+          <input type="checkbox" style={{width:16}} checked={filteredOrders.length > 0 && filteredOrders.every(o => selectedOrders.includes(o.id))} onChange={event => setSelectedOrders(old => event.target.checked ? Array.from(new Set([...old, ...filteredOrders.map(o => o.id)])) : old.filter(id => !filteredOrders.some(o => o.id === id)))}/>
+          Select all matching
+        </label>
+        <span className="muted-text">{selectedOrders.length} selected</span>
+        <button className="primary" disabled={invoiceBusy || selectedOrders.length === 0 || selectedOrders.length > 50} onClick={() => downloadInvoices("zip")}>{invoiceBusy ? "Generating…" : "Download ZIP"}</button>
+        <button className="secondary" disabled={invoiceBusy || selectedOrders.length === 0 || selectedOrders.length > 50} onClick={() => downloadInvoices("combined")}>{invoiceBusy ? "Generating…" : "Download Combined PDF"}</button>
+      </div>
+      {filteredOrders.length === 0 ? <p>No matching orders.</p> : <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>Select</th><th>Order / Customer</th><th>Items</th><th>Payment / Acceptance</th><th>Fulfilment</th><th>Amount</th><th>Update</th></tr></thead><tbody>{filteredOrders.map(o => {
         const edit = orderEdits[o.id] || { payment: o.payment_status || "pending_utr", fulfillment: o.fulfillment_status || "confirmed" };
         const next = ({ confirmed: "packed", packed: "ready_to_ship", ready_to_ship: "shipped", shipped: "delivered" } as Record<string,string>)[o.fulfillment_status] || o.fulfillment_status;
         return <tr key={o.id}>
+          <td><input aria-label={`Select invoice for ${o.order_number || o.id.slice(0,8)}`} type="checkbox" style={{width:16}} checked={selectedOrders.includes(o.id)} onChange={event => setSelectedOrders(old => event.target.checked ? [...old, o.id] : old.filter(id => id !== o.id))}/></td>
           <td><strong>{o.order_number || o.id.slice(0,8)}</strong><br/>{o.customer_name}<br/><span className="muted-text">{o.mobile} · {o.city} · {o.pin_code || o.pincode}</span></td>
           <td>{(o.order_items || []).map((it: AnyRow) => <div key={it.id}>{it.product_name} × {it.quantity}<br/><span className="muted-text">{it.sku}</span></div>)}</td>
           <td><strong>{o.payment_method?.toUpperCase() || "UPI"} · {o.payment_status}</strong><br/><span className="muted-text">Acceptance: {o.order_acceptance_status || "pending"} · UTR: {o.utr_number || "—"}</span>{o.payment_method === "cod" ? <div className="inline-actions" style={{marginTop:6}}>{o.order_acceptance_status === "pending" && <><button className="primary" disabled={busy} onClick={() => runCodAction(o,"accept_cod")}>Accept COD</button><button className="secondary" disabled={busy} onClick={() => runCodAction(o,"reject_cod")}>Reject COD</button></>}{o.fulfillment_status === "delivered" && o.payment_status === "due_on_delivery" && <button className="primary" disabled={busy} onClick={() => runCodAction(o,"collect_cod")}>Record cash received</button>}</div> : <><select value={edit.payment} onChange={e => setOrderEdits(old => ({...old,[o.id]:{...edit,payment:e.target.value}}))}><option value="accepted">Accept payment</option><option value="rejected">Reject payment</option><option value="pending_utr" disabled>Pending UTR (read only)</option><option value="pending_verification" disabled>Pending verification (read only)</option></select><button className="primary" style={{marginTop:6}} disabled={busy || !["accepted","rejected"].includes(edit.payment) || edit.payment === o.payment_status} onClick={() => updateOrder(o,"payment")}>Submit payment</button></>}</td>
