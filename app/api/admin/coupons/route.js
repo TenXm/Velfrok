@@ -40,7 +40,7 @@ export async function GET(req) {
     const { data, error } = await supabaseAdmin().from("coupons").select("*").order("created_at", { ascending: false });
     if (error) { console.error("Coupon load failed:", error.message); return fail("Could not load coupons.", 500); }
     return Response.json({ coupons: data || [] }, { headers: { "Cache-Control": "no-store" } });
-  } catch (error) { console.error("Coupons GET failed:", error); return fail("Server error.", 500); }
+  } catch (error) { if (error instanceof Response) return error; console.error("Coupons GET failed:", error); return fail("Server error.", 500); }
 }
 
 export async function POST(req) {
@@ -53,7 +53,7 @@ export async function POST(req) {
     const { data, error } = await supabaseAdmin().from("coupons").insert(parsed.value).select("*").single();
     if (error) { console.error("Coupon create failed:", error.message); return fail(error.code === "23505" ? "Coupon code already exists." : "Could not create coupon.", error.code === "23505" ? 409 : 500); }
     return Response.json({ coupon: data }, { status: 201 });
-  } catch (error) { console.error("Coupons POST failed:", error); return fail("Server error.", 500); }
+  } catch (error) { if (error instanceof Response) return error; console.error("Coupons POST failed:", error); return fail("Server error.", 500); }
 }
 
 export async function PATCH(req) {
@@ -75,7 +75,7 @@ export async function PATCH(req) {
     if (error) { console.error("Coupon update failed:", error.message); return fail(error.code === "23505" ? "Coupon code already exists." : "Could not update coupon.", error.code === "23505" ? 409 : 500); }
     if (!data) return fail("Coupon not found.", 404);
     return Response.json({ coupon: data });
-  } catch (error) { console.error("Coupons PATCH failed:", error); return fail("Server error.", 500); }
+  } catch (error) { if (error instanceof Response) return error; console.error("Coupons PATCH failed:", error); return fail("Server error.", 500); }
 }
 
 export async function DELETE(req) {
@@ -88,5 +88,5 @@ export async function DELETE(req) {
     if (error) { console.error("Coupon delete failed:", error.message); return fail("Could not delete coupon.", 500); }
     if (!count) return fail("Coupon not found.", 404);
     return Response.json({ ok: true });
-  } catch (error) { console.error("Coupons DELETE failed:", error); return fail("Server error.", 500); }
+  } catch (error) { if (error instanceof Response) return error; console.error("Coupons DELETE failed:", error); return fail("Server error.", 500); }
 }
