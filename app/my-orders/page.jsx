@@ -68,7 +68,7 @@ export default function MyOrdersPage() {
       <p style={{ ...muted, letterSpacing: 2, fontWeight: 700 }}>YOUR ACCOUNT</p>
       <h1 style={{ fontFamily: "Georgia,serif", fontSize: 40, margin: "8px 0" }}>My Orders</h1>
       <p style={muted}>Track your purchases and check payment updates. This page refreshes automatically.</p>
-      {signedOut && <section style={panel}><h2>Sign in to view your orders</h2><p style={muted}>Your order history is private to your account.</p><Link href="/login" style={action}>Sign in</Link></section>}
+      {signedOut && <section style={panel}><h2>Sign in to view your orders</h2><p style={muted}>Your order history is private to your account.</p><Link href="/login?next=%2Fmy-orders" style={action}>Sign in</Link></section>}
       {error && <p role="alert" style={{ color: "#a3332d", background: "#fff0ed", padding: 14, borderRadius: 9 }}>{error}</p>}
       {loading && <p style={muted}>Loading your orders…</p>}
       {!loading && !signedOut && !error && orders.length === 0 && <section style={panel}><h2>No orders yet</h2><p style={muted}>Your purchases will appear here after checkout.</p><Link href="/" style={action}>Explore the store</Link></section>}
