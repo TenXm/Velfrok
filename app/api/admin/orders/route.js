@@ -4,6 +4,8 @@ import { auditLog } from "@/lib/audit";
 import { clean } from "@/lib/sanitize";
 import { rateLimit, clientIp } from "@/lib/rate-limit";
 
+export const dynamic = "force-dynamic";
+
 const PAYMENT_STATUSES = ["accepted", "rejected"];
 
 const NEXT_STATUS = {
