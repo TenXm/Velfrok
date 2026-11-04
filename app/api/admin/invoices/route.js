@@ -64,79 +64,95 @@ async function makeInvoice(order) {
   const doc = await PDFDocument.create();
   const font = await loadInvoiceFont(doc);
   const bold = font;
-  const page = doc.addPage([PAGE.width, PAGE.height]);
   const left = 42, right = PAGE.width - 42;
   const orderNo = text(order.order_number || String(order.id).slice(0, 8));
   const items = Array.isArray(order.order_items) ? order.order_items : [];
-
-  page.drawRectangle({ x: 0, y: PAGE.height - 132, width: PAGE.width, height: 132, color: pale });
-  page.drawText("velfrok", { x: left, y: PAGE.height - 58, size: 28, font: bold, color: green });
-  page.drawText("INVOICE", { x: right - 105, y: PAGE.height - 52, size: 17, font: bold, color: green });
-  page.drawText("Order " + orderNo, { x: right - 170, y: PAGE.height - 75, size: 9, font, color: ink });
-  page.drawText("Invoice date: " + date(order.created_at), { x: left, y: PAGE.height - 91, size: 9, font, color: muted });
-  page.drawText("Generated: " + date(new Date().toISOString()), { x: left, y: PAGE.height - 106, size: 8, font, color: muted });
-
-  let y = PAGE.height - 160;
-  page.drawText("BILL TO", { x: left, y, size: 9, font: bold, color: green });
-  page.drawText("ORDER DETAILS", { x: 325, y, size: 9, font: bold, color: green });
-  y -= 20;
-  let customerY = y;
-  customerY = drawWrapped(page, order.customer_name || "Customer", left, customerY, 230, bold, 11, ink, 14, 2);
-  customerY = drawWrapped(page, order.email || "", left, customerY - 2, 230, font, 8, muted, 11, 2);
-  customerY = drawWrapped(page, order.mobile || "", left, customerY - 2, 230, font, 8, muted, 11, 1);
-  const address = [order.address || order.street_address, order.landmark, order.city, order.state, order.pincode || order.pin_code].filter(Boolean).join(", ");
-  drawWrapped(page, address, left, customerY - 2, 245, font, 8, muted, 11, 4);
-  page.drawText("Payment: " + text(order.payment_method || "UPI").toUpperCase(), { x: 325, y, size: 9, font, color: ink });
-  page.drawText("Payment status: " + text(order.payment_status || "—"), { x: 325, y: y - 15, size: 9, font, color: ink });
-  page.drawText("Fulfilment: " + text(order.fulfillment_status || "—"), { x: 325, y: y - 30, size: 9, font, color: ink });
-
-  const tableTop = PAGE.height - 300;
-  page.drawRectangle({ x: left, y: tableTop - 24, width: right - left, height: 24, color: green });
-  page.drawText("ITEM", { x: left + 8, y: tableTop - 16, size: 8, font: bold, color: rgb(1,1,1) });
-  page.drawText("QTY", { x: 365, y: tableTop - 16, size: 8, font: bold, color: rgb(1,1,1) });
-  page.drawText("PRICE", { x: 410, y: tableTop - 16, size: 8, font: bold, color: rgb(1,1,1) });
-  page.drawText("TOTAL", { x: 495, y: tableTop - 16, size: 8, font: bold, color: rgb(1,1,1) });
-
-  let rowY = tableTop - 43;
-  for (const item of items.slice(0, 32)) {
-    const name = text(item.product_name || "Product");
-    page.drawText(name.slice(0, 48), { x: left + 8, y: rowY, size: 8, font, color: ink });
-    const detail = [item.sku, item.color].filter(Boolean).join(" · ");
-    if (detail) page.drawText(text(detail).slice(0, 54), { x: left + 8, y: rowY - 11, size: 7, font, color: muted });
-    page.drawText(String(item.quantity || 0), { x: 370, y: rowY, size: 8, font, color: ink });
-    page.drawText(money(item.unit_price), { x: 410, y: rowY, size: 8, font, color: ink });
-    page.drawText(money(item.line_total), { x: 490, y: rowY, size: 8, font, color: ink });
-    page.drawLine({ start: { x: left, y: rowY - 18 }, end: { x: right, y: rowY - 18 }, thickness: 0.5, color: line });
-    rowY -= 27;
-  }
-  if (!items.length) {
-    page.drawText("No item details available.", { x: left + 8, y: rowY, size: 9, font, color: muted });
-    rowY -= 27;
-  }
+  const chunks = [];
+  for (let index = 0; index < Math.max(items.length, 1); index += 12) chunks.push(items.slice(index, index + 12));
 
   const subtotal = Number(order.subtotal ?? order.total_amount ?? order.total ?? 0);
   const discount = Number(order.discount_amount ?? order.discount ?? 0);
   const shipping = Number(order.shipping_amount ?? order.shipping ?? 0);
   const total = Number(order.total_amount ?? order.total ?? Math.max(0, subtotal - discount + shipping));
-  const totalsY = Math.max(105, rowY - 25);
-  const labelX = 365, valueX = 475;
-  const totalRows = [
-    ["Subtotal", money(subtotal)],
-    ["Discount", "− " + money(discount)],
-    ...(shipping ? [["Shipping", money(shipping)]] : []),
-  ];
-  totalRows.forEach((entry, index) => {
-    const yy = totalsY - index * 17;
-    page.drawText(entry[0], { x: labelX, y: yy, size: 9, font, color: muted });
-    page.drawText(entry[1], { x: valueX, y: yy, size: 9, font, color: ink });
-  });
-  const grandY = totalsY - totalRows.length * 17 - 5;
-  page.drawRectangle({ x: 350, y: grandY - 10, width: right - 350, height: 29, color: pale });
-  page.drawText("TOTAL", { x: labelX, y: grandY, size: 10, font: bold, color: green });
-  page.drawText(money(total), { x: valueX, y: grandY, size: 10, font: bold, color: green });
-  page.drawLine({ start: { x: left, y: 72 }, end: { x: right, y: 72 }, thickness: 0.8, color: line });
-  page.drawText("Thank you for shopping with Velfrok.", { x: left, y: 54, size: 9, font, color: green });
-  page.drawText("This is a computer-generated invoice.", { x: left, y: 39, size: 7, font, color: muted });
+
+  for (let pageIndex = 0; pageIndex < chunks.length; pageIndex++) {
+    const page = doc.addPage([PAGE.width, PAGE.height]);
+    const pageItems = chunks[pageIndex];
+    const isFirst = pageIndex === 0;
+    const isLast = pageIndex === chunks.length - 1;
+
+    page.drawRectangle({ x: 0, y: PAGE.height - 132, width: PAGE.width, height: 132, color: pale });
+    page.drawText("velfrok", { x: left, y: PAGE.height - 58, size: 28, font: bold, color: green });
+    page.drawText("INVOICE", { x: right - 105, y: PAGE.height - 52, size: 17, font: bold, color: green });
+    page.drawText("Order " + orderNo, { x: right - 170, y: PAGE.height - 75, size: 9, font, color: ink });
+    page.drawText("Invoice date: " + date(order.created_at), { x: left, y: PAGE.height - 91, size: 9, font, color: muted });
+    page.drawText(isFirst ? "Generated: " + date(new Date().toISOString()) : "Continued · Page " + (pageIndex + 1), { x: left, y: PAGE.height - 106, size: 8, font, color: muted });
+
+    if (isFirst) {
+      let y = PAGE.height - 160;
+      page.drawText("BILL TO", { x: left, y, size: 9, font: bold, color: green });
+      page.drawText("ORDER DETAILS", { x: 325, y, size: 9, font: bold, color: green });
+      y -= 20;
+      let customerY = y;
+      customerY = drawWrapped(page, order.customer_name || "Customer", left, customerY, 230, bold, 11, ink, 14, 2);
+      customerY = drawWrapped(page, order.email || "", left, customerY - 2, 230, font, 8, muted, 11, 2);
+      customerY = drawWrapped(page, order.mobile || "", left, customerY - 2, 230, font, 8, muted, 11, 1);
+      const address = [order.address || order.street_address, order.landmark, order.city, order.state, order.pincode || order.pin_code].filter(Boolean).join(", ");
+      drawWrapped(page, address, left, customerY - 2, 245, font, 8, muted, 11, 4);
+      page.drawText("Payment: " + text(order.payment_method || "UPI").toUpperCase(), { x: 325, y, size: 9, font, color: ink });
+      page.drawText("Payment status: " + text(order.payment_status || "—"), { x: 325, y: y - 15, size: 9, font, color: ink });
+      page.drawText("Fulfilment: " + text(order.fulfillment_status || "—"), { x: 325, y: y - 30, size: 9, font, color: ink });
+    } else {
+      page.drawText("ITEMS CONTINUED", { x: left, y: PAGE.height - 165, size: 10, font: bold, color: green });
+    }
+
+    const tableTop = PAGE.height - 300;
+    page.drawRectangle({ x: left, y: tableTop - 24, width: right - left, height: 24, color: green });
+    page.drawText("ITEM", { x: left + 8, y: tableTop - 16, size: 8, font: bold, color: rgb(1, 1, 1) });
+    page.drawText("QTY", { x: 365, y: tableTop - 16, size: 8, font: bold, color: rgb(1, 1, 1) });
+    page.drawText("PRICE", { x: 410, y: tableTop - 16, size: 8, font: bold, color: rgb(1, 1, 1) });
+    page.drawText("TOTAL", { x: 495, y: tableTop - 16, size: 8, font: bold, color: rgb(1, 1, 1) });
+
+    let rowY = tableTop - 43;
+    for (const item of pageItems) {
+      const name = text(item.product_name || "Product");
+      page.drawText(name.slice(0, 48), { x: left + 8, y: rowY, size: 8, font, color: ink });
+      const detail = [item.sku, item.color].filter(Boolean).join(" · ");
+      if (detail) page.drawText(text(detail).slice(0, 54), { x: left + 8, y: rowY - 11, size: 7, font, color: muted });
+      page.drawText(String(item.quantity || 0), { x: 370, y: rowY, size: 8, font, color: ink });
+      page.drawText(money(item.unit_price), { x: 410, y: rowY, size: 8, font, color: ink });
+      page.drawText(money(item.line_total), { x: 490, y: rowY, size: 8, font, color: ink });
+      page.drawLine({ start: { x: left, y: rowY - 18 }, end: { x: right, y: rowY - 18 }, thickness: 0.5, color: line });
+      rowY -= 27;
+    }
+    if (!pageItems.length) {
+      page.drawText("No item details available.", { x: left + 8, y: rowY, size: 9, font, color: muted });
+      rowY -= 27;
+    }
+
+    if (isLast) {
+      const totalsY = rowY - 25;
+      const labelX = 365, valueX = 475;
+      const totalRows = [
+        ["Subtotal", money(subtotal)],
+        ["Discount", "− " + money(discount)],
+        ...(shipping ? [["Shipping", money(shipping)]] : []),
+      ];
+      totalRows.forEach((entry, index) => {
+        const yy = totalsY - index * 17;
+        page.drawText(entry[0], { x: labelX, y: yy, size: 9, font, color: muted });
+        page.drawText(entry[1], { x: valueX, y: yy, size: 9, font, color: ink });
+      });
+      const grandY = totalsY - totalRows.length * 17 - 5;
+      page.drawRectangle({ x: 350, y: grandY - 10, width: right - 350, height: 29, color: pale });
+      page.drawText("TOTAL", { x: labelX, y: grandY, size: 10, font: bold, color: green });
+      page.drawText(money(total), { x: valueX, y: grandY, size: 10, font: bold, color: green });
+    }
+
+    page.drawLine({ start: { x: left, y: 72 }, end: { x: right, y: 72 }, thickness: 0.8, color: line });
+    page.drawText("Thank you for shopping with Velfrok.", { x: left, y: 54, size: 9, font, color: green });
+    page.drawText("This is a computer-generated invoice.", { x: left, y: 39, size: 7, font, color: muted });
+  }
   return doc.save();
 }
 
