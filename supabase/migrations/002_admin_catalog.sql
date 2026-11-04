@@ -24,13 +24,8 @@ create index if not exists product_attribute_options_lookup_idx
 
 alter table public.product_attribute_options enable row level security;
 
-drop policy if exists "Admins manage product attribute options"
-  on public.product_attribute_options;
-create policy "Admins manage product attribute options"
-  on public.product_attribute_options
-  for all to authenticated
-  using (public.is_velfrok_admin())
-  with check (public.is_velfrok_admin());
+-- No direct browser access is granted. The MFA-guarded admin API uses
+-- the service-role client after requireAdmin() validates the aal2 session.
 
 -- Atomic bulk inventory adjustments. The function checks both admin membership
 -- and the elevated MFA assurance claim, then locks products in UUID order.
