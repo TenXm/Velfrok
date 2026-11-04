@@ -1,6 +1,8 @@
 
 "use client";
 
+import Link from "next/link";
+
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   Search,
@@ -750,21 +752,31 @@ function ProductCard({
 }) {
   return (
     <article className="product">
-      <div className="product-image">
-        {product.image ? (
-          <img
-            src={product.image}
-            alt={product.name}
-            loading="lazy"
-          />
-        ) : (
-          <div className="empty">Image coming soon</div>
-        )}
-        <span className="discount">{product.badge}</span>
-      </div>
+      <Link
+        className="product-detail-link"
+        href={`/products/${encodeURIComponent(product.id)}`}
+        aria-label={`View details for ${product.name}`}
+      >
+        <div className="product-image">
+          {product.image ? (
+            <img
+              src={product.image}
+              alt={product.name}
+              loading="lazy"
+            />
+          ) : (
+            <div className="empty">Image coming soon</div>
+          )}
+          <span className="discount">{product.badge}</span>
+        </div>
+      </Link>
 
       <div className="product-info">
-        <h3>{product.name}</h3>
+        <h3>
+          <Link href={`/products/${encodeURIComponent(product.id)}`}>
+            {product.name}
+          </Link>
+        </h3>
 
         <div className="price-row">
           <span className="price">{money(product.price)}</span>
