@@ -286,11 +286,11 @@ export default function CheckoutPage() {
                     ))}
                   </div>
                   <div className="checkout-totals">
-                    <div><span>Subtotal</span><b>₹{subtotal.toFixed(2)}</b></div>
+                    <div><span>Subtotal</span><b>₹{Number(appliedCoupon?.subtotal ?? subtotal).toFixed(2)}</b></div>
                     {appliedCoupon && <div><span>Coupon ({appliedCoupon.couponCode})</span><b className="checkout-free">−₹{Number(appliedCoupon.discountAmount).toFixed(2)}</b></div>}
                     <div><span>Delivery</span><b className="checkout-free">Calculated at dispatch</b></div>
                   </div>
-                  <div className="checkout-grand-total"><span>Estimated total</span><strong>₹{Math.max(0, subtotal - Number(appliedCoupon?.discountAmount || 0)).toFixed(2)}</strong></div>
+                  <div className="checkout-grand-total"><span>Estimated total</span><strong>₹{Number(appliedCoupon?.payable ?? subtotal).toFixed(2)}</strong></div>
                   <p className="checkout-price-note">Final price, availability and stock are verified securely by our server when you place the order.</p>
                   <button className="checkout-submit checkout-submit-desktop" type="submit" disabled={busy || !token}>
                     {busy ? "Processing…" : paymentMethod === "upi" ? "Continue to UPI payment" : "Place order"}
