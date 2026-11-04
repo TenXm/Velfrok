@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { supabaseBrowser } from "@/lib/supabase";
+import { supabaseAdminBrowser } from "@/lib/supabase-admin-browser";
 
 type AnyRow = Record<string, any>;
 type Props = { accessToken: string; initialOrders?: AnyRow[] };
@@ -115,7 +115,7 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
   const [newAttributeName, setNewAttributeName] = useState("");
   const [customAttributeNames, setCustomAttributeNames] = useState<string[]>([]);
   const [couponForm, setCouponForm] = useState({ code: "", discount_type: "percentage", discount_value: "", min_order_value: "0", max_discount: "", expires_at: "", usage_limit: "", per_customer_limit: "", is_active: true });
-  const supabase = useMemo(() => supabaseBrowser(), []);
+  const supabase = useMemo(() => supabaseAdminBrowser(), []);
   const [editingCouponId, setEditingCouponId] = useState<string | null>(null);
 
   const api = useCallback(async (path: string, init: RequestInit = {}) => {
