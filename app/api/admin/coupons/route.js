@@ -3,6 +3,8 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { requireAdmin } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
 
+export const dynamic = "force-dynamic";
+
 const schema = z.object({
   id: z.string().uuid().optional(),
   code: z.string().trim().min(3).max(32).regex(/^[A-Za-z0-9_-]+$/),
