@@ -114,6 +114,7 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
   const [newAttributeName, setNewAttributeName] = useState("");
   const [customAttributeNames, setCustomAttributeNames] = useState<string[]>([]);
   const [couponForm, setCouponForm] = useState({ code: "", discount_type: "percentage", discount_value: "", min_order_value: "0", max_discount: "", expires_at: "", usage_limit: "", per_customer_limit: "" });
+  const [editingCouponId, setEditingCouponId] = useState<string | null>(null);
 
   const api = useCallback(async (path: string, init: RequestInit = {}) => {
     const headers = new Headers(init.headers);
@@ -291,16 +292,32 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
   const saveCoupon = async (event: React.FormEvent) => {
     event.preventDefault(); setBusy(true); setError(""); setMessage("");
     try {
-      const result = await api("/api/admin/coupons", { method: "POST", body: JSON.stringify({
+      const payload = {
         ...couponForm, discount_value: Number(couponForm.discount_value), min_order_value: Number(couponForm.min_order_value),
         max_discount: couponForm.max_discount || null, usage_limit: couponForm.usage_limit || null,
         per_customer_limit: couponForm.per_customer_limit || null, expires_at: couponForm.expires_at || null,
-      }) });
-      setCoupons(old => [result.coupon, ...old]);
+      };
+      const result = await api("/api/admin/coupons", { method: editingCouponId ? "PATCH" : "POST", body: JSON.stringify(editingCouponId ? { ...payload, id: editingCouponId } : payload) });
+      setCoupons(old => editingCouponId ? old.map(c => c.id === editingCouponId ? result.coupon : c) : [result.coupon, ...old]);
+      setEditingCouponId(null);
       setCouponForm({ code: "", discount_type: "percentage", discount_value: "", min_order_value: "0", max_discount: "", expires_at: "", usage_limit: "", per_customer_limit: "" });
-      setMessage("Coupon created.");
+      setMessage(editingCouponId ? "Coupon updated." : "Coupon created.");
     } catch (e) { setError(e instanceof Error ? e.message : "Could not create coupon."); }
     finally { setBusy(false); }
+  };
+
+  const editCoupon = (coupon: AnyRow) => {
+    setEditingCouponId(coupon.id);
+    setCouponForm({
+      code: coupon.code || "", discount_type: coupon.discount_type || "percentage",
+      discount_value: String(coupon.discount_value ?? ""), min_order_value: String(coupon.min_order_value ?? 0),
+      max_discount: coupon.max_discount == null ? "" : String(coupon.max_discount),
+      expires_at: coupon.expires_at ? new Date(coupon.expires_at).toISOString().slice(0,16) : "",
+      usage_limit: coupon.usage_limit == null ? "" : String(coupon.usage_limit),
+      per_customer_limit: coupon.per_customer_limit == null ? "" : String(coupon.per_customer_limit),
+    });
+    setTab("coupons");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const toggleCoupon = async (coupon: AnyRow) => {
@@ -427,7 +444,7 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
     </div>}
 
     {tab === "coupons" && <>
-      <div className="admin-card"><h2>Create coupon</h2><form onSubmit={saveCoupon} className="product-form">
+      <div className="admin-card"><div className="section-head"><h2>{editingCouponId ? "Edit coupon" : "Create coupon"}</h2>{editingCouponId && <button type="button" className="secondary" onClick={() => { setEditingCouponId(null); setCouponForm({ code: "", discount_type: "percentage", discount_value: "", min_order_value: "0", max_discount: "", expires_at: "", usage_limit: "", per_customer_limit: "" }); }}>Cancel edit</button>}</div><form onSubmit={saveCoupon} className="product-form">
         <div className="admin-fields">
           <div className="field"><label>Coupon code *</label><input required value={couponForm.code} onChange={e => setCouponForm(f => ({...f,code:e.target.value.toUpperCase()}))} placeholder="WELCOME15"/></div>
           <div className="field"><label>Discount type *</label><select value={couponForm.discount_type} onChange={e => setCouponForm(f => ({...f,discount_type:e.target.value}))}><option value="percentage">Percentage (%)</option><option value="flat">Flat (₹)</option></select></div>
@@ -438,9 +455,9 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
           <div className="field"><label>Total usage limit</label><input type="number" min="1" step="1" value={couponForm.usage_limit} onChange={e => setCouponForm(f => ({...f,usage_limit:e.target.value}))}/></div>
           <div className="field"><label>Per-customer limit</label><input type="number" min="1" step="1" value={couponForm.per_customer_limit} onChange={e => setCouponForm(f => ({...f,per_customer_limit:e.target.value}))}/></div>
         </div>
-        <button className="primary" disabled={busy}>Submit new coupon</button>
+        <button className="primary" disabled={busy}>{editingCouponId ? "Submit coupon changes" : "Submit new coupon"}</button>
       </form></div>
-      <div className="admin-card"><h2>Coupon codes</h2><div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>Code</th><th>Discount</th><th>Minimum order</th><th>Expiry</th><th>Status</th><th>Actions</th></tr></thead><tbody>{coupons.map(c => <tr key={c.id}><td><strong>{c.code}</strong></td><td>{c.discount_type === "percentage" ? `${c.discount_value}%` : money(c.discount_value)}</td><td>{money(c.min_order_value)}</td><td>{dateText(c.expires_at)}</td><td>{c.is_active ? "Active" : "Disabled"}</td><td><div className="inline-actions"><button className="secondary" onClick={() => toggleCoupon(c)}>{c.is_active ? "Disable" : "Enable"}</button><button className="danger" onClick={() => deleteCoupon(c.id)}>Delete</button></div></td></tr>)}</tbody></table></div></div>
+      <div className="admin-card"><h2>Coupon codes</h2><div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>Code</th><th>Discount</th><th>Minimum order</th><th>Expiry</th><th>Status</th><th>Actions</th></tr></thead><tbody>{coupons.map(c => <tr key={c.id}><td><strong>{c.code}</strong></td><td>{c.discount_type === "percentage" ? `${c.discount_value}%` : money(c.discount_value)}</td><td>{money(c.min_order_value)}</td><td>{dateText(c.expires_at)}</td><td>{c.is_active ? "Active" : "Disabled"}</td><td><div className="inline-actions"><button className="secondary" onClick={() => editCoupon(c)}>Edit</button><button className="secondary" onClick={() => toggleCoupon(c)}>{c.is_active ? "Disable" : "Enable"}</button><button className="danger" onClick={() => deleteCoupon(c.id)}>Delete</button></div></td></tr>)}</tbody></table></div></div>
     </>}
   </section>;
 }
