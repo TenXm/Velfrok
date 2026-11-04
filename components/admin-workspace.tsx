@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { supabaseBrowser } from "@/lib/supabase";
 
 type AnyRow = Record<string, any>;
 type Props = { accessToken: string; initialOrders?: AnyRow[] };
@@ -114,11 +115,16 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
   const [newAttributeName, setNewAttributeName] = useState("");
   const [customAttributeNames, setCustomAttributeNames] = useState<string[]>([]);
   const [couponForm, setCouponForm] = useState({ code: "", discount_type: "percentage", discount_value: "", min_order_value: "0", max_discount: "", expires_at: "", usage_limit: "", per_customer_limit: "", is_active: true });
+  const supabase = useMemo(() => supabaseBrowser(), []);
   const [editingCouponId, setEditingCouponId] = useState<string | null>(null);
 
   const api = useCallback(async (path: string, init: RequestInit = {}) => {
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError) throw sessionError;
+    const token = sessionData.session?.access_token || accessToken;
+    if (!token) throw new Error("Your admin session expired. Sign in again.");
     const headers = new Headers(init.headers);
-    headers.set("Authorization", `Bearer ${accessToken}`);
+    headers.set("Authorization", `Bearer ${token}`);
     if (init.body && !(init.body instanceof FormData) && !headers.has("Content-Type")) {
       headers.set("Content-Type", "application/json");
     }
@@ -130,7 +136,7 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.error || "Request failed.");
     return result;
-  }, [accessToken]);
+  }, [accessToken, supabase]);
 
   const loadAll = useCallback(async () => {
     setBusy(true); setError("");
