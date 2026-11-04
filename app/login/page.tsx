@@ -102,6 +102,23 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      const emailToCheck = email.trim().toLowerCase();
+      const validationResponse = await fetch("/api/auth/check-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: emailToCheck }),
+        cache: "no-store",
+      });
+      const validation = await validationResponse.json();
+
+      if (!validationResponse.ok || validation.valid !== true) {
+        setMessage(
+          validation.error ||
+            "We could not validate this email address. Please try again."
+        );
+        return;
+      }
+
       const supabase = supabaseBrowser();
 
       const { error } = await supabase.auth.signInWithOtp({
