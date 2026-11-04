@@ -7,8 +7,11 @@ import { supabaseBrowser } from "@/lib/supabase";
 type Order = {
   id: string;
   created_at?: string;
-  status?: string;
+  fulfillment_status?: string;
   payment_status?: string;
+  order_number?: string;
+  total?: number;
+  customer_name?: string;
 };
 
 type Step =
@@ -265,13 +268,13 @@ export default function AdminPage() {
 
   const total = orders.length;
   const pending = orders.filter(
-    (order) => order.payment_status === "pending"
+    (order) => ["pending_utr", "pending_verification"].includes(order.payment_status || "")
   ).length;
   const paid = orders.filter(
-    (order) => order.payment_status === "paid"
+    (order) => order.payment_status === "accepted"
   ).length;
   const active = orders.filter((order) =>
-    ["placed", "packed", "dispatched"].includes(order.status || "")
+    ["confirmed", "packed", "shipped"].includes(order.fulfillment_status || "")
   ).length;
 
   const styles = `
@@ -370,6 +373,12 @@ export default function AdminPage() {
       user-select: all;
     }
     .message { color: #f2c779; overflow-wrap: anywhere; }
+    .admin-modules { margin: 28px 0; }
+    .admin-modules h2 { font-size: 18px; margin-bottom: 12px; }
+    .module-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+    .module-grid a { display: block; padding: 16px; border: 1px solid #343147; border-radius: 12px; background: #141522; color: #f3f4fa; text-decoration: none; font-weight: 700; }
+    .module-grid a span { display: block; margin-top: 7px; color: #a5a6b8; font-size: 12px; font-weight: 400; }
+    .module-grid a:hover { border-color: #8466df; }
     .stats {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
@@ -559,6 +568,18 @@ export default function AdminPage() {
               <p>Your Velfrok store dashboard is ready.</p>
             </section>
 
+            <section className="admin-modules">
+              <h2>Store operations</h2>
+              <div className="module-grid">
+                <a href="/admin/products">Products <span>Manage listings and images →</span></a>
+                <a href="/admin/inventory">Inventory <span>Monitor and adjust stock →</span></a>
+                <a href="/admin/orders">Orders <span>Review and update orders →</span></a>
+                <a href="/admin/payments">Payments <span>Review payment records →</span></a>
+                <a href="/admin/customers">Customers <span>View registered accounts →</span></a>
+                <a href="/admin/coupons">Coupons <span>Manage promotional codes →</span></a>
+              </div>
+            </section>
+
             <section className="stats">
               <div className="stat">
                 <span>Total orders</span>
@@ -587,10 +608,10 @@ export default function AdminPage() {
                 orders.slice(0, 20).map((order) => (
                   <div className="order" key={order.id}>
                     <strong>
-                      Order #{order.id.slice(0, 8).toUpperCase()}
+                      {order.order_number || `Order #${order.id.slice(0, 8).toUpperCase()}`}
                     </strong>
                     <span className="muted">
-                      {order.status || "Unknown"} /{" "}
+                      {order.fulfillment_status || "Unknown"} /{" "}
                       {order.payment_status || "Unknown"}
                     </span>
                   </div>
