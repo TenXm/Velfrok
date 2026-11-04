@@ -319,6 +319,7 @@ export default function Storefront() {
 
           <div className="header-actions">
             <AuthStatus />
+            <Link href="/my-orders" className="header-action" aria-label="My orders">My Orders</Link>
 
             <button
               className="header-action"
