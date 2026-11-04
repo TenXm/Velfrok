@@ -216,7 +216,9 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
   };
 
   const saveProduct = async (event: React.FormEvent) => {
-    event.preventDefault(); setBusy(true); setError(""); setMessage("");
+    event.preventDefault();
+    if (!productForm.category_id) { setError("Select a category before saving the product."); return; }
+    setBusy(true); setError(""); setMessage("");
     const payload = {
       name: productForm.name, sku: productForm.sku, category_id: productForm.category_id || null,
       description: productForm.description, mrp: Number(productForm.mrp), selling_price: Number(productForm.selling_price),
