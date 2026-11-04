@@ -71,9 +71,16 @@ export async function POST(req) {
 
     const expected = hashCode(code, secret);
     if (!safeEqual(expected, challenge.otp_hash)) {
-      const nextAttempts = challenge.attempts + 1;
-      await db.from("admin_email_otp_challenges").update({ attempts: nextAttempts }).eq("id", challenge.id).lt("attempts", 5);
-      return fail(nextAttempts >= 5 ? "Too many incorrect attempts. Request a new code." : "Incorrect verification code.", 400);
+      const { data: nextAttempts } = await db.rpc("admin_email_otp_increment_attempt", {
+        p_user_id: user.id,
+        p_session_id: sessionId,
+      });
+      return fail(
+        Number(nextAttempts) >= 5
+          ? "Too many incorrect attempts. Request a new code."
+          : "Incorrect verification code.",
+        Number(nextAttempts) >= 5 ? 429 : 400
+      );
     }
 
     const verifiedAt = new Date();
