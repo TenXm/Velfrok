@@ -1,4 +1,4 @@
--- Product reviews: customers must be authenticated; new reviews are held for moderation.
+-- Product reviews: customers must be authenticated; published reviews are visible to all visitors.
 create table if not exists public.product_reviews (
   id uuid primary key default gen_random_uuid(),
   product_id uuid not null references public.products(id) on delete cascade,
@@ -6,7 +6,7 @@ create table if not exists public.product_reviews (
   rating integer not null check (rating between 1 and 5),
   title text not null check (length(trim(title)) between 3 and 120),
   body text not null check (length(trim(body)) between 10 and 3000),
-  is_approved boolean not null default false,
+  is_approved boolean not null default true,
   created_at timestamptz not null default now(),
   unique (product_id, user_id)
 );
