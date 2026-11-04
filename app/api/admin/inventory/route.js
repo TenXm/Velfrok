@@ -3,6 +3,8 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { requireAdmin, supabaseForUser } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
 
+export const dynamic = "force-dynamic";
+
 const changeSchema = z.object({
   product_id: z.string().uuid(),
   operation: z.enum(["add", "deduct", "set"]),
