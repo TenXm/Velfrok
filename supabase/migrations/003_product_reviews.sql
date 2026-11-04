@@ -17,6 +17,7 @@ create index if not exists product_reviews_product_approved_idx
 alter table public.product_reviews enable row level security;
 
 drop policy if exists "Customers can read approved reviews and their own" on public.product_reviews;
+drop policy if exists "Anyone can read approved reviews" on public.product_reviews;
 create policy "Anyone can read approved reviews"
   on public.product_reviews for select to anon, authenticated
   using (is_approved = true or auth.uid() = user_id);
