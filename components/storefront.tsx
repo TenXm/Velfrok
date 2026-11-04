@@ -762,7 +762,7 @@ function ProductCard({
     <article className="product">
       <Link
         className="product-detail-link"
-        href={`/products/${encodeURIComponent(product.id)}`}
+        href={`/product/${encodeURIComponent(product.sku || product.id)}`}
         aria-label={`View details for ${product.name}`}
       >
         <div className="product-image">
@@ -781,7 +781,7 @@ function ProductCard({
 
       <div className="product-info">
         <h3>
-          <Link href={`/products/${encodeURIComponent(product.id)}`}>
+          <Link href={`/product/${encodeURIComponent(product.sku || product.id)}`}>
             {product.name}
           </Link>
         </h3>
