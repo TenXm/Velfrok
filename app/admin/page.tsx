@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabaseBrowser } from "@/lib/supabase";
+import { supabaseAdminBrowser } from "@/lib/supabase-admin-browser";
 import AdminWorkspace from "@/components/admin-workspace";
 
 export default function AdminPage() {
@@ -15,7 +15,7 @@ export default function AdminPage() {
   useEffect(() => {
     let alive = true;
     async function start() {
-      const supabase = supabaseBrowser();
+      const supabase = supabaseAdminBrowser();
       const { data } = await supabase.auth.getSession();
       const accessToken = data.session?.access_token;
       if (!accessToken) { router.replace("/admin/login"); return; }
@@ -34,7 +34,7 @@ export default function AdminPage() {
   }, [router]);
 
   async function signOut() {
-    await supabaseBrowser().auth.signOut();
+    await supabaseAdminBrowser().auth.signOut();
     router.replace("/admin/login");
   }
 
