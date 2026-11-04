@@ -71,7 +71,7 @@ export default function ProductDetailPage() {
   ], [attributeEntries, product]);
   const visibleReviews = reviews;
   const average = visibleReviews.length ? visibleReviews.reduce((sum, r) => sum + r.rating, 0) / visibleReviews.length : 0;
-  const related = product ? allProducts.filter(p => p.id !== product.id && p.category === product.category).slice(0, 4) : [];
+  const related = product ? allProducts.filter(p => p.id !== product.id).sort((a, b) => Number(b.category === product.category) - Number(a.category === product.category)).filter(p => p.quantity > 0) : [];
 
   const chooseOption = (key: string, value: string) => setSelected(old => ({ ...old, [key]: value }));
 
@@ -161,13 +161,15 @@ export default function ProductDetailPage() {
             </div>
           </section>
 
+          {related.length>0 && <section className="related-products-section"><div className="section-head"><h2>You may also like</h2><Link className="text-button" href="/#products">View all products</Link></div><div className="related-product-grid">{related.map(item=><Link href={`/products/${item.id}`} className="related-product-card" key={item.id}>{item.image?<img src={item.image} alt={item.name}/>:<div className="empty">Image coming soon</div>}<strong>{item.name}</strong><span>{money(item.price)}</span></Link>)}</div></section>}
+
           <section className="product-info-section product-reviews-section" id="reviews">
             <div className="review-section-heading"><div><h2>Customer reviews</h2><p>Reviews from Velfrok customers</p></div><div className="review-average">{visibleReviews.length ? <><strong>{average.toFixed(1)}/5</strong><span className="review-stars">{"★".repeat(Math.round(average))}{"☆".repeat(5-Math.round(average))}</span></> : <span>No reviews yet</span>}</div></div>
             {visibleReviews.length ? <div className="review-list">{visibleReviews.map(review=><article className="review-card" key={review.id}><div className="review-card-top"><strong>{review.title}</strong><span className="review-stars">{"★".repeat(review.rating)}{"☆".repeat(5-review.rating)}</span></div><p>{review.body}</p><small>Verified customer · {new Date(review.created_at).toLocaleDateString("en-IN")}</small></article>)}</div> : <p className="product-detail-muted">There are no published reviews yet. Share your experience after purchasing this product.</p>}
             <div className="review-form-wrap"><h3>Write a review</h3>{userId ? <form className="review-form" onSubmit={submitReview}><label>Your rating</label><div className="rating-picker">{[1,2,3,4,5].map(n=><button type="button" key={n} className={n<=reviewRating?"active":""} onClick={()=>setReviewRating(n)} aria-label={`${n} stars`}><Star size={22} fill={n<=reviewRating?"currentColor":"none"}/></button>)}</div><label htmlFor="review-title">Review title</label><input id="review-title" value={reviewTitle} onChange={e=>setReviewTitle(e.target.value)} minLength={3} maxLength={120} required placeholder="Summarise your experience"/><label htmlFor="review-body">Your review</label><textarea id="review-body" value={reviewBody} onChange={e=>setReviewBody(e.target.value)} minLength={10} maxLength={3000} required rows={4} placeholder="What did you like or dislike?"/><button className="product-detail-shop-button" disabled={reviewBusy}>{reviewBusy?"Submitting...":"Submit review"}</button></form> : <p><Link href="/login" className="review-login-link">Sign in</Link> to write a review.</p>}{reviewMessage&&<p className="review-success" role="status">{reviewMessage}</p>}{reviewError&&<p className="review-error" role="alert">{reviewError}</p>}</div>
           </section>
 
-          {related.length>0 && <section className="related-products-section"><div className="section-head"><h2>You may also like</h2><Link className="text-button" href="/#products">View all products</Link></div><div className="related-product-grid">{related.map(item=><Link href={`/products/${item.id}`} className="related-product-card" key={item.id}>{item.image?<img src={item.image} alt={item.name}/>:<div className="empty">Image coming soon</div>}<strong>{item.name}</strong><span>{money(item.price)}</span></Link>)}</div></section>}
+
         </>}
       </div>
     </div>
