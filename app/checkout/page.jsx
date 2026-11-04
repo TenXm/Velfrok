@@ -168,7 +168,7 @@ export default function CheckoutPage() {
                     </label>
                     <label className="checkout-field checkout-field-full">
                       <span>Mobile number</span>
-                      <div className="checkout-phone-wrap"><b>+91</b><input autoComplete="tel-national" type="tel" inputMode="numeric" required maxLength={15} minLength={10} pattern="[0-9]{10}" title="Enter exactly 10 digits, without country code or spaces." placeholder="10-digit mobile number" value={form.phone} onChange={(e) => update("phone", e.target.value.replace(/\D/g, ""))} /></div>
+                      <div className="checkout-phone-wrap"><b>+91</b><input autoComplete="tel-national" type="tel" inputMode="numeric" required maxLength={10} minLength={10} pattern="[0-9]{10}" title="Enter exactly 10 digits, without country code or spaces." placeholder="10-digit mobile number" value={form.phone} onChange={(e) => update("phone", e.target.value.replace(/\D/g, "").slice(0, 10))} onPaste={(e) => { e.preventDefault(); const pasted = e.clipboardData.getData("text").replace(/\D/g, ""); const input = e.currentTarget; const next = form.phone.slice(0, input.selectionStart) + pasted + form.phone.slice(input.selectionEnd); if (next.length > 10) { setError("মোবাইল নম্বর ১০টির বেশি সংখ্যা হতে পারবে না।"); return; } update("phone", next); }} /></div>
                     </label>
                     <label className="checkout-field checkout-field-full">
                       <span>Street address</span>
