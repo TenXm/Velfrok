@@ -50,7 +50,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     loadOrders()
-      .catch((error) => setMessage(error instanceof Error ? error.message : "Unable to load admin dashboard."))
+      .catch((error: unknown) => setMessage(error instanceof Error ? error.message : "Unable to load admin dashboard."))
       .finally(() => setLoading(false));
   }, [loadOrders]);
 
@@ -73,7 +73,7 @@ export default function AdminPage() {
           <button onClick={signOut} style={secondaryStyle}>Sign out</button>
         </header>
 
-        {loading ? <section style={panelStyle}><h1>Checking secure access</h1><p>Please wait while we verify your administrator account.</p></section> : message ? <section style={panelStyle}><h1>Unable to load dashboard</h1><p>{message}</p><button onClick={() => loadOrders().catch((error) => setMessage(error.message))} style={buttonStyle}>Try again</button></section> : (
+        {loading ? <section style={panelStyle}><h1>Checking secure access</h1><p>Please wait while we verify your administrator account.</p></section> : message ? <section style={panelStyle}><h1>Unable to load dashboard</h1><p>{message}</p><button onClick={() => loadOrders().catch((error: unknown) => setMessage(error instanceof Error ? error.message : "Could not reload the dashboard."))} style={buttonStyle}>Try again</button></section> : (
           <>
             <section style={{ marginTop: 35 }}>
               <p style={{ color: "#a5a6b8" }}>ADMIN WORKSPACE / OVERVIEW</p>
