@@ -62,6 +62,10 @@ export async function POST(req) {
       const name = text(body.name, 80);
       const slug = slugify(name);
       if (!name || !slug) return fail("Enter a valid category name.");
+      const { data: matchingCategory, error: categoryLookupError } = await db.from("categories")
+        .select("*").eq("slug", slug).limit(1).maybeSingle();
+      if (categoryLookupError) return fail("Could not check existing categories.", 500);
+      if (matchingCategory) return Response.json({ category: matchingCategory, existing: true });
       const { data, error } = await db.from("categories")
         .insert({ name, slug }).select("*").single();
       if (error) {
