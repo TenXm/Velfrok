@@ -65,10 +65,11 @@ export default function ProductDetailPage() {
   const images = product?.images.length ? product.images : product?.image ? [product.image] : [];
   const attributeEntries = useMemo(() => Object.entries(product?.attributes || {})
     .filter(([key, values]) => values.length && !["highlights", "bullet-points", "benefits"].includes(key)), [product]);
-  const requiredKeys = useMemo(() => attributeEntries
-    .filter(([key]) => ["size", "sizes", "colour", "color"].includes(key))
-    .map(([key]) => key), [attributeEntries]);
-  const visibleReviews = reviews.filter(review => review.user_id !== userId || true);
+  const requiredKeys = useMemo(() => [
+    ...(product?.colours.length ? ["colour"] : []),
+    ...attributeEntries.filter(([key]) => ["size", "sizes", "colour", "color"].includes(key)).map(([key]) => key),
+  ], [attributeEntries, product]);
+  const visibleReviews = reviews;
   const average = visibleReviews.length ? visibleReviews.reduce((sum, r) => sum + r.rating, 0) / visibleReviews.length : 0;
   const related = product ? allProducts.filter(p => p.id !== product.id && p.category === product.category).slice(0, 4) : [];
 
