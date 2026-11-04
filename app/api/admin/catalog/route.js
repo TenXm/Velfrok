@@ -89,7 +89,12 @@ export async function POST(req) {
         if (error.code === "23505") {
           const { data: existing } = await db.from("product_attribute_options")
             .select("*").eq("attribute_slug", attributeSlug).eq("normalized_value", normalizedValue).maybeSingle();
-          if (existing) return Response.json({ option: existing, existing: true });
+          if (existing?.is_active) return Response.json({ option: existing, existing: true });
+          if (existing && !existing.is_active) {
+            const { data: restored, error: restoreError } = await db.from("product_attribute_options")
+              .update({ is_active: true, value }).eq("id", existing.id).select("*").single();
+            if (!restoreError && restored) return Response.json({ option: restored, restored: true });
+          }
           return fail("This option already exists.", 409);
         }
         console.error("Attribute option create failed:", error.message);
