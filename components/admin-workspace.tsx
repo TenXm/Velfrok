@@ -232,6 +232,25 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
     finally { setBusy(false); }
   };
 
+  const editAttributeOption = async (option: Option) => {
+    const value = window.prompt(`Rename ${option.attribute_name} option`, option.value);
+    if (!value || value.trim() === option.value) return;
+    try {
+      const result = await api("/api/admin/catalog", { method: "PATCH", body: JSON.stringify({ action: "option", id: option.id, value: value.trim() }) });
+      setOptions(old => old.map(item => item.id === option.id ? result.option : item));
+      setMessage("Parameter option renamed.");
+    } catch (e) { setError(e instanceof Error ? e.message : "Could not rename option."); }
+  };
+
+  const removeAttributeOption = async (option: Option) => {
+    if (!window.confirm(`Remove “${option.value}” from future selections? Existing products keep their saved value.`)) return;
+    try {
+      await api(`/api/admin/catalog?optionId=${encodeURIComponent(option.id)}`, { method: "DELETE" });
+      setOptions(old => old.filter(item => item.id !== option.id));
+      setMessage("Parameter option removed from future selections.");
+    } catch (e) { setError(e instanceof Error ? e.message : "Could not remove option."); }
+  };
+
   const archiveProduct = async (id: string) => {
     if (!window.confirm("Archive this product? It will be hidden from the storefront but kept in past orders.")) return;
     try {
@@ -384,6 +403,12 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
         <div className="section-head"><h2>Categories</h2><span className="muted-text">{categories.length} total</span></div>
         <CategoryPicker categories={categories} value={categoryManagerSelection} onChange={setCategoryManagerSelection} onCreate={createCategory}/>
         <div className="chips">{categories.map(c => <span className="chip" key={c.id}>{c.name}</span>)}</div>
+      </div>
+
+      <div className="admin-card">
+        <h2>Saved product parameters</h2>
+        <p>Rename or remove values from future dropdown selections. Existing products keep their saved values.</p>
+        {options.length === 0 ? <p>No custom parameter values yet.</p> : <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>Parameter</th><th>Saved value</th><th>Actions</th></tr></thead><tbody>{options.map(option => <tr key={option.id}><td>{option.attribute_name}</td><td>{option.value}</td><td><div className="inline-actions"><button className="secondary" onClick={() => editAttributeOption(option)}>Rename</button><button className="danger" onClick={() => removeAttributeOption(option)}>Remove</button></div></td></tr>)}</tbody></table></div>}
       </div>
 
       <div className="admin-card">
