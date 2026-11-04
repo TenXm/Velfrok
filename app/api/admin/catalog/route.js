@@ -27,7 +27,7 @@ export async function GET(req) {
     const [products, categories, options] = await Promise.all([
       db.from("products").select("*").order("created_at", { ascending: false }).limit(500),
       db.from("categories").select("*").order("name"),
-      db.from("product_attribute_options").select("*").order("attribute_name").order("value"),
+      db.from("product_attribute_options").select("*").eq("is_active", true).order("attribute_name").order("value"),
     ]);
 
     const error = products.error || categories.error || options.error;
@@ -161,6 +161,21 @@ export async function PATCH(req) {
     if (auth.error) return auth.error;
     let body;
     try { body = await req.json(); } catch { return fail("Invalid request body."); }
+    if (body?.action === "option") {
+      const id = body.id || "";
+      const value = text(body.value, 80);
+      if (!UUID.test(id) || !value) return fail("Invalid parameter option.");
+      const normalizedValue = value.toLocaleLowerCase("en-IN").replace(/\\s+/g, " ");
+      const { data, error } = await supabaseAdmin().from("product_attribute_options")
+        .update({ value, normalized_value: normalizedValue })
+        .eq("id", id).eq("is_active", true).select("*").maybeSingle();
+      if (error) {
+        console.error("Parameter option update failed:", error.message);
+        return fail(error.code === "23505" ? "That option already exists." : "Could not update option.", error.code === "23505" ? 409 : 500);
+      }
+      if (!data) return fail("Parameter option not found.", 404);
+      return Response.json({ option: data });
+    }
     if (body?.action !== "product" || !UUID.test(body.id || "")) return fail("Invalid product update.");
     const normalized = normalizeProduct(body.product);
     if (normalized.error) return fail(normalized.error);
@@ -178,12 +193,21 @@ export async function PATCH(req) {
     return fail("Server error.", 500);
   }
 }
-
 export async function DELETE(req) {
   try {
     const auth = await guard(req, "delete");
     if (auth.error) return auth.error;
-    const id = new URL(req.url).searchParams.get("id") || "";
+    const params = new URL(req.url).searchParams;
+    const optionId = params.get("optionId") || "";
+    if (optionId) {
+      if (!UUID.test(optionId)) return fail("Invalid parameter option ID.");
+      const { data, error } = await supabaseAdmin().from("product_attribute_options")
+        .update({ is_active: false }).eq("id", optionId).eq("is_active", true).select("id,is_active").maybeSingle();
+      if (error) { console.error("Parameter option archive failed:", error.message); return fail("Could not remove parameter option.", 500); }
+      if (!data) return fail("Parameter option not found.", 404);
+      return Response.json({ ok: true, option: data });
+    }
+    const id = params.get("id") || "";
     if (!UUID.test(id)) return fail("Invalid product ID.");
     const { data, error } = await supabaseAdmin().from("products")
       .update({ is_active: false, updated_at: new Date().toISOString() })
