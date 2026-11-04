@@ -53,6 +53,7 @@ export default function AdminProductsPage() {
   const [form, setForm] = useState<ProductForm>(emptyForm);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
@@ -97,6 +98,49 @@ export default function AdminProductsPage() {
   }, [request]);
 
   useEffect(() => { loadProducts(); }, [loadProducts]);
+
+  async function uploadImages(event: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files || []);
+    event.target.value = "";
+    if (!files.length) return;
+
+    setUploading(true);
+    setError("");
+    setMessage("");
+
+    try {
+      const { data, error: sessionError } = await supabaseBrowser().auth.getSession();
+      if (sessionError) throw sessionError;
+      const token = data.session?.access_token;
+      if (!token) throw new Error("Please sign in again to upload product images.");
+
+      const uploaded: string[] = [];
+      for (const file of files) {
+        const body = new FormData();
+        body.append("file", file);
+        const response = await fetch("/api/admin/upload", {
+          method: "POST",
+          cache: "no-store",
+          headers: { Authorization: `Bearer ${token}` },
+          body,
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.error || "Image upload failed.");
+        if (typeof result.url !== "string") throw new Error("Upload did not return an image URL.");
+        uploaded.push(result.url);
+      }
+
+      setForm((current) => ({
+        ...current,
+        imageUrls: [current.imageUrls.trim(), ...uploaded].filter(Boolean).join("\\n"),
+      }));
+      setMessage(`${uploaded.length} image(s) uploaded. Save the product to attach them.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not upload images.");
+    } finally {
+      setUploading(false);
+    }
+  }
 
   function editProduct(product: ProductRow) {
     setForm({
@@ -198,7 +242,9 @@ export default function AdminProductsPage() {
             <Field label="Weight"><input value={form.weight} onChange={(e) => setForm({ ...form, weight: e.target.value })} placeholder="e.g. 500 g" style={inputStyle} /></Field>
             <div style={{ alignSelf: "end", padding: "10px 0", fontWeight: 700 }}>Discount preview: {discount}%</div>
           </div>
-          <Field label="Image URLs (one per line; upload integration is a separate step)">
+          <Field label="Product images (JPG, PNG or WebP; max 2 MB each)">
+            <input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={uploadImages} disabled={uploading} style={{ display: "block", marginBottom: 10 }} />
+            <small style={{ display: "block", color: "#68738a", marginBottom: 8 }}>{uploading ? "Uploading images…" : "You can select multiple images. Uploaded images are added to the gallery URL list below."}</small>
             <textarea value={form.imageUrls} onChange={(e) => setForm({ ...form, imageUrls: e.target.value })} rows={3} style={inputStyle} />
           </Field>
           <Field label="Product description">
@@ -208,7 +254,7 @@ export default function AdminProductsPage() {
             <input type="checkbox" checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} /> Active in storefront
           </label>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <button disabled={saving} type="submit" style={buttonStyle}>{saving ? "Saving..." : form.id ? "Save changes" : "Create product"}</button>
+            <button disabled={saving || uploading} type="submit" style={buttonStyle}>{saving ? "Saving..." : form.id ? "Save changes" : "Create product"}</button>
             {form.id && <button type="button" onClick={() => setForm(emptyForm)} style={secondaryStyle}>Cancel edit</button>}
           </div>
           {message && <p role="status" style={{ color: "#17623b" }}>{message}</p>}
