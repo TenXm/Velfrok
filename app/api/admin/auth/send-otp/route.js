@@ -1,6 +1,7 @@
 import { createHmac, randomInt } from "node:crypto";
 import { supabaseAdmin } from "@/lib/supabase";
 import { requireUser } from "@/lib/auth";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -54,31 +55,10 @@ export async function POST(req) {
     }
     if (!admin) return fail("This account is not authorized as an administrator.", 403);
 
+    // Atomic per-account limits: one code per minute and five per day.
+    await rateLimit(`admin-otp-minute:${user.id}`, 1, 60);
+    await rateLimit(`admin-otp-daily:${user.id}`, 5, 86400);
     const now = Date.now();
-    const { count, error: countError } = await db
-      .from("admin_email_otp_challenges")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", user.id)
-      .gte("created_at", new Date(now - 24 * 60 * 60 * 1000).toISOString());
-
-    if (countError) {
-      console.error("Admin OTP rate lookup failed:", countError.message);
-      return fail("Verification is temporarily unavailable.", 503);
-    }
-    if ((count || 0) >= 5) return fail("Daily verification limit reached. Try again later.", 429);
-
-    const { data: recent, error: recentError } = await db
-      .from("admin_email_otp_challenges")
-      .select("created_at")
-      .eq("user_id", user.id)
-      .gte("created_at", new Date(now - 60 * 1000).toISOString())
-      .limit(1);
-
-    if (recentError) {
-      console.error("Admin OTP cooldown lookup failed:", recentError.message);
-      return fail("Verification is temporarily unavailable.", 503);
-    }
-    if (recent?.length) return fail("Please wait one minute before requesting another code.", 429);
 
     const code = String(randomInt(100000, 1000000));
     const { error: deleteError } = await db
