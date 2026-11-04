@@ -116,9 +116,14 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
   const [couponForm, setCouponForm] = useState({ code: "", discount_type: "percentage", discount_value: "", min_order_value: "0", max_discount: "", expires_at: "", usage_limit: "", per_customer_limit: "" });
 
   const api = useCallback(async (path: string, init: RequestInit = {}) => {
+    const headers = new Headers(init.headers);
+    headers.set("Authorization", `Bearer ${accessToken}`);
+    if (init.body && !(init.body instanceof FormData) && !headers.has("Content-Type")) {
+      headers.set("Content-Type", "application/json");
+    }
     const response = await fetch(path, {
       ...init,
-      headers: { Authorization: `Bearer ${accessToken}`, ...(init.body && !(init.body instanceof FormData) ? { "Content-Type": "application/json" } : {}), ...(init.headers || {}) },
+      headers,
       cache: "no-store",
     });
     const result = await response.json().catch(() => ({}));
