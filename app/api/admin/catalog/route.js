@@ -42,6 +42,7 @@ export async function GET(req) {
       options: options.data || [],
     }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
+    if (error instanceof Response) return error;
     console.error("Admin catalogue GET failed:", error);
     return fail("Server error.", 500);
   }
@@ -84,6 +85,7 @@ export async function POST(req) {
         if (error.code === "23505") {
           const { data: existing } = await db.from("product_attribute_options")
             .select("*").eq("attribute_slug", attributeSlug).eq("normalized_value", normalizedValue).maybeSingle();
+          if (existing) return Response.json({ option: existing, existing: true });
           return fail("This option already exists.", 409);
         }
         console.error("Attribute option create failed:", error.message);
@@ -105,6 +107,7 @@ export async function POST(req) {
 
     return fail("Unknown catalogue action.");
   } catch (error) {
+    if (error instanceof Response) return error;
     console.error("Admin catalogue POST failed:", error);
     return fail("Server error.", 500);
   }
@@ -166,6 +169,7 @@ export async function PATCH(req) {
     if (!data) return fail("Product not found.", 404);
     return Response.json({ product: data });
   } catch (error) {
+    if (error instanceof Response) return error;
     console.error("Admin catalogue PATCH failed:", error);
     return fail("Server error.", 500);
   }
@@ -187,6 +191,7 @@ export async function DELETE(req) {
     if (!data) return fail("Product not found.", 404);
     return Response.json({ ok: true, product: data });
   } catch (error) {
+    if (error instanceof Response) return error;
     console.error("Admin catalogue DELETE failed:", error);
     return fail("Server error.", 500);
   }
