@@ -2,6 +2,7 @@ import { requireUser, supabaseForUser } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
 import { rateLimit } from "@/lib/rate-limit";
 import { clean } from "@/lib/sanitize";
+import { validateCoupon } from "@/lib/coupons";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 function responseError(message, status) { return Response.json({ error: message }, { status }); }
@@ -17,7 +18,6 @@ export async function POST(req) {
     if (!body || typeof body !== "object" || Array.isArray(body)) return responseError("Invalid order details.", 400);
     if (!Array.isArray(body.items) || !body.items.length) return responseError("Your cart is empty.", 400);
     if (body.items.length > 30) return responseError("Too many items in your cart.", 400);
-    if (typeof body.coupon === "string" && body.coupon.trim()) return responseError("Coupons are temporarily unavailable. Please continue without a coupon.", 400);
 
     const paymentMethod = body.paymentMethod;
     if (!["upi", "cod"].includes(paymentMethod)) return responseError("Choose a valid payment method.", 400);
@@ -62,6 +62,15 @@ export async function POST(req) {
     const rpcItems = [...combined.entries()].map(([product_id, quantity]) => ({ product_id, quantity })).sort((a,b) => a.product_id.localeCompare(b.product_id));
     if (!rpcItems.length) return responseError("Your cart is empty.", 400);
 
+    const couponCode = typeof body.coupon === "string" ? body.coupon.trim() : "";
+    if (couponCode) {
+      const couponResult = await validateCoupon({
+        db, userId: user.id, code: couponCode,
+        items: rpcItems.map((item) => ({ productId: item.product_id, quantity: item.quantity })),
+      });
+      if (couponResult.error) return responseError(couponResult.error, couponResult.status || 400);
+    }
+
     const name = clean(body.name, 80);
     const rawMobile = typeof body.phone === "string" ? body.phone.trim() : "";
     const mobile = rawMobile;
@@ -74,7 +83,7 @@ export async function POST(req) {
     const { data: orderId, error: orderError } = await db.rpc("place_order_atomic", {
       p_customer_name: name, p_mobile: mobile, p_email: user.email, p_address: address,
       p_city: city, p_state: state, p_pincode: pincode, p_items: rpcItems,
-      p_payment_method: paymentMethod, p_coupon_code: null,
+      p_payment_method: paymentMethod, p_coupon_code: couponCode || null,
     });
     if (orderError || !orderId) {
       console.error("Atomic order creation failed:", orderError?.message || "No order ID returned");
