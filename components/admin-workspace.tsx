@@ -288,7 +288,7 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
     setBusy(true); setError(""); setMessage("");
     try {
       const result = await api("/api/admin/inventory", { method: "PATCH", body: JSON.stringify({ items: selectedProducts.map(product_id => ({ product_id, mode: stockMode, quantity: amount })) }) });
-      const quantities = new Map((result.results || []).map((item: AnyRow) => [item.product_id, item.quantity]));
+      const quantities = new Map<string, number>((result.results || []).map((item: AnyRow) => [item.product_id, item.quantity] as [string, number]));
       setProducts(old => old.map(p => quantities.has(p.id) ? { ...p, quantity: quantities.get(p.id) } : p));
       setSelectedProducts([]); setMessage("Inventory updated for selected products.");
     } catch (e) { setError(e instanceof Error ? e.message : "Inventory update failed."); }
@@ -465,7 +465,7 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
     </div>}
 
     {tab === "coupons" && <>
-      <div className="admin-card"><div className="section-head"><h2>{editingCouponId ? "Edit coupon" : "Create coupon"}</h2>{editingCouponId && <button type="button" className="secondary" onClick={() => { setEditingCouponId(null); setCouponForm({ code: "", discount_type: "percentage", discount_value: "", min_order_value: "0", max_discount: "", expires_at: "", usage_limit: "", per_customer_limit: "" }); }}>Cancel edit</button>}</div><form onSubmit={saveCoupon} className="product-form">
+      <div className="admin-card"><div className="section-head"><h2>{editingCouponId ? "Edit coupon" : "Create coupon"}</h2>{editingCouponId && <button type="button" className="secondary" onClick={() => { setEditingCouponId(null); setCouponForm({ code: "", discount_type: "percentage", discount_value: "", min_order_value: "0", max_discount: "", expires_at: "", usage_limit: "", per_customer_limit: "", is_active: true }); }}>Cancel edit</button>}</div><form onSubmit={saveCoupon} className="product-form">
         <div className="admin-fields">
           <div className="field"><label>Coupon code *</label><input required value={couponForm.code} onChange={e => setCouponForm(f => ({...f,code:e.target.value.toUpperCase()}))} placeholder="WELCOME15"/></div>
           <div className="field"><label>Discount type *</label><select value={couponForm.discount_type} onChange={e => setCouponForm(f => ({...f,discount_type:e.target.value}))}><option value="percentage">Percentage (%)</option><option value="flat">Flat (₹)</option></select></div>
