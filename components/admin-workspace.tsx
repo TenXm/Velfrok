@@ -152,7 +152,7 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
   const addOption = async (attributeName: string, value: string) => {
     try {
       const result = await api("/api/admin/catalog", { method: "POST", body: JSON.stringify({ action: "option", attributeName, value }) });
-      setOptions(old => [...old, result.option]);
+      setOptions(old => old.some(option => option.id === result.option.id) ? old : [...old, result.option]);
       setMessage(`Added ${value} to ${attributeName} options.`);
       return result.option as Option;
     } catch (e) {
