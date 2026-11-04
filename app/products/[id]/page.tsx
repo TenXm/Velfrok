@@ -155,7 +155,6 @@ export default function ProductDetailPage() {
             {product.description && <div className="product-long-description">{product.description.split(/\n+/).map((line,i)=><p key={i}>{line}</p>)}</div>}
             {bulletsFrom(product).length>0 && <ul className="product-bullet-points">{bulletsFrom(product).map((item,i)=><li key={i}>{item}</li>)}</ul>}
             <div className="product-spec-grid">
-              {product.sku && <div><span>SKU</span><strong>{product.sku}</strong></div>}
               {product.dimensions && <div><span>Dimensions</span><strong>{product.dimensions}</strong></div>}
               {product.weight && <div><span>Weight</span><strong>{product.weight}</strong></div>}
               {attributeEntries.filter(([key])=>!requiredKeys.includes(key)).map(([key,values])=><div key={key}><span>{labelize(key)}</span><strong>{values.join(", ")}</strong></div>)}
