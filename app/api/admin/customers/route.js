@@ -2,6 +2,8 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { requireAdmin } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
 
+export const dynamic = "force-dynamic";
+
 const fail = (message, status) => Response.json({ error: message }, { status });
 
 export async function GET(req) {
