@@ -26,6 +26,7 @@ import {
   Droplet,
 } from "lucide-react";
 
+import Link from "next/link";
 import { getProducts, type Product } from "@/lib/products";
 import AuthStatus from "@/components/auth-status";
 import { storeConfig } from "@/lib/store-config";
@@ -750,7 +751,7 @@ function ProductCard({
 }) {
   return (
     <article className="product">
-      <div className="product-image">
+      <Link className="product-image product-image-link" href={`/products/${product.id}`} aria-label={`View ${product.name}`}>
         {product.image ? (
           <img
             src={product.image}
@@ -761,10 +762,10 @@ function ProductCard({
           <div className="empty">Image coming soon</div>
         )}
         <span className="discount">{product.badge}</span>
-      </div>
+      </Link>
 
       <div className="product-info">
-        <h3>{product.name}</h3>
+        <h3><Link className="product-title-link" href={`/products/${product.id}`}>{product.name}</Link></h3>
 
         <div className="price-row">
           <span className="price">{money(product.price)}</span>
