@@ -210,22 +210,22 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
       const form = new FormData();
       Array.from(files).slice(0, 12).forEach(file => form.append("files", file));
       const result = await api("/api/admin/product-images", { method: "POST", body: form });
-      setProductForm(f => ({ ...f, imagesText: [f.imagesText, ...(result.images || [])].filter(Boolean).join("\\n") }));
+      setProductForm(f => ({ ...f, imagesText: [f.imagesText, ...(result.images || [])].filter(Boolean).join("\n") }));
       setMessage(`${(result.images || []).length} product image(s) uploaded.`);
     } catch (e) { setError(e instanceof Error ? e.message : "Image upload failed."); }
     finally { setBusy(false); }
   };
 
-  const imageUrls = productForm.imagesText.split("\\n").map(value => value.trim()).filter(Boolean);
+  const imageUrls = productForm.imagesText.split("\n").map(value => value.trim()).filter(Boolean);
   const moveImage = (index: number, direction: number) => {
     const next = [...imageUrls];
     const target = index + direction;
     if (target < 0 || target >= next.length) return;
     [next[index], next[target]] = [next[target], next[index]];
-    setProductForm(f => ({ ...f, imagesText: next.join("\\n") }));
+    setProductForm(f => ({ ...f, imagesText: next.join("\n") }));
   };
   const removeImage = (index: number) => {
-    setProductForm(f => ({ ...f, imagesText: f.imagesText.split("\\n").filter((_, i) => i !== index).join("\\n") }));
+    setProductForm(f => ({ ...f, imagesText: f.imagesText.split("\n").filter((_, i) => i !== index).join("\n") }));
   };
 
   const saveProduct = async (event: React.FormEvent) => {
