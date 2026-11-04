@@ -1106,7 +1106,7 @@ a {
 .checkout-field { display: grid; gap: 7px; min-width: 0; }
 .checkout-field-full { grid-column: 1/-1; }
 .checkout-field > span { color: #45574d; font-size: 11px; font-weight: 700; }
-.checkout-field input, .checkout-phone-wrap { width: 100%; min-width: 0; height: 45px; border: 1px solid #e1e7e0; border-radius: 8px; background: #fcfdfb; color: #1c3028; font: 12px inherit; outline: none; transition: border-color .15s, box-shadow .15s; }
+.checkout-field input, .checkout-phone-wrap { width: 100%; min-width: 0; height: 45px; border: 1px solid #e1e7e0; border-radius: 8px; background: #fcfdfb; color: #1c3028; font: inherit; font-size: 12px; outline: none; transition: border-color .15s, box-shadow .15s; }
 .checkout-field input { padding: 0 13px; }
 .checkout-field input::placeholder { color: #a5aea7; }
 .checkout-field input:focus, .checkout-phone-wrap:focus-within { border-color: #668c72; box-shadow: 0 0 0 3px rgba(77,124,88,.10); }
