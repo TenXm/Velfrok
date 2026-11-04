@@ -20,7 +20,9 @@ function couponInput(body) {
   const maxDiscount = body.max_discount === "" || body.max_discount == null ? null : Number(body.max_discount);
   const usageLimit = body.usage_limit === "" || body.usage_limit == null ? null : Number(body.usage_limit);
   const perCustomerLimit = body.per_customer_limit === "" || body.per_customer_limit == null ? null : Number(body.per_customer_limit);
-  const expiresAt = body.expires_at ? new Date(body.expires_at).toISOString() : null;
+  const expiryDate = body.expires_at ? new Date(body.expires_at) : null;
+  if (expiryDate && Number.isNaN(expiryDate.getTime())) return { error: "Enter a valid expiry date." };
+  const expiresAt = expiryDate ? expiryDate.toISOString() : null;
 
   if (!/^[A-Z0-9_-]{3,40}$/.test(code)) return { error: "Coupon code must be 3–40 letters, numbers, hyphens or underscores." };
   if (!["percentage", "flat"].includes(discountType)) return { error: "Choose percentage or flat discount." };
