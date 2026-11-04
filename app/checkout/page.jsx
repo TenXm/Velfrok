@@ -20,6 +20,10 @@ export default function CheckoutPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [couponBusy, setCouponBusy] = useState(false);
+  const [couponError, setCouponError] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -53,6 +57,39 @@ export default function CheckoutPage() {
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
   const update = (key, value) => setForm((old) => ({ ...old, [key]: value }));
+
+  async function applyCoupon(event) {
+    event.preventDefault();
+    setCouponError("");
+    if (!token) { setCouponError("কুপন ব্যবহার করতে আগে সাইন ইন করুন।"); return; }
+    if (!couponCode.trim()) { setCouponError("একটি কুপন কোড লিখুন।"); return; }
+    if (!items.length) { setCouponError("আপনার কার্ট খালি।"); return; }
+    setCouponBusy(true);
+    try {
+      const response = await fetch("/api/coupons/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          code: couponCode,
+          items: items.map((item) => ({ product_id: item.productId, quantity: item.quantity })),
+          coupon: appliedCoupon?.couponCode || null,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "কুপন যাচাই করা যায়নি।");
+      setAppliedCoupon(result);
+      setCouponCode(result.couponCode);
+    } catch (e) {
+      setAppliedCoupon(null);
+      setCouponError(e instanceof Error ? e.message : "কুপন যাচাই করা যায়নি।");
+    } finally { setCouponBusy(false); }
+  }
+
+  function removeCoupon() {
+    setAppliedCoupon(null);
+    setCouponCode("");
+    setCouponError("");
+  }
 
   async function submit(event) {
     event.preventDefault();
@@ -192,6 +229,20 @@ export default function CheckoutPage() {
                 <section className="checkout-card">
                   <div className="checkout-card-heading">
                     <span className="checkout-section-number">02</span>
+                    <div><h2>Promo code</h2><p>Have a coupon? Apply it to your order.</p></div>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <input aria-label="Coupon code" autoComplete="off" maxLength={40} placeholder="Enter coupon code" value={couponCode} disabled={couponBusy || Boolean(appliedCoupon)} onChange={(e) => setCouponCode(e.target.value.toUpperCase().replace(/\s/g, ""))} style={{ flex: "1 1 180px", minWidth: 0, border: "1px solid #dfe5dc", borderRadius: 9, padding: "12px 13px", textTransform: "uppercase" }} />
+                    {appliedCoupon ? <button type="button" onClick={removeCoupon} className="checkout-primary-link">Remove</button> : <button type="button" onClick={applyCoupon} disabled={couponBusy || !token} className="checkout-primary-link">{couponBusy ? "Checking…" : "Apply coupon"}</button>}
+                  </div>
+                  {appliedCoupon && <p role="status" style={{ color: "#176344", fontSize: 13, marginBottom: 0 }}>✓ {appliedCoupon.couponCode} applied — you save ₹{Number(appliedCoupon.discountAmount).toFixed(2)}.</p>}
+                  {couponError && <p role="alert" style={{ color: "#a3332d", fontSize: 12, marginBottom: 0 }}>{couponError}</p>}
+                  {!token && <p className="checkout-payment-footnote">Sign in to validate and apply a coupon.</p>}
+                </section>
+
+                <section className="checkout-card">
+                  <div className="checkout-card-heading">
+                    <span className="checkout-section-number">03</span>
                     <div><h2>Payment method</h2><p>Choose your preferred payment option.</p></div>
                   </div>
                   <div className="checkout-payment-options">
@@ -236,9 +287,10 @@ export default function CheckoutPage() {
                   </div>
                   <div className="checkout-totals">
                     <div><span>Subtotal</span><b>₹{subtotal.toFixed(2)}</b></div>
+                    {appliedCoupon && <div><span>Coupon ({appliedCoupon.couponCode})</span><b className="checkout-free">−₹{Number(appliedCoupon.discountAmount).toFixed(2)}</b></div>}
                     <div><span>Delivery</span><b className="checkout-free">Calculated at dispatch</b></div>
                   </div>
-                  <div className="checkout-grand-total"><span>Estimated total</span><strong>₹{subtotal.toFixed(2)}</strong></div>
+                  <div className="checkout-grand-total"><span>Estimated total</span><strong>₹{Math.max(0, subtotal - Number(appliedCoupon?.discountAmount || 0)).toFixed(2)}</strong></div>
                   <p className="checkout-price-note">Final price, availability and stock are verified securely by our server when you place the order.</p>
                   <button className="checkout-submit checkout-submit-desktop" type="submit" disabled={busy || !token}>
                     {busy ? "Processing…" : paymentMethod === "upi" ? "Continue to UPI payment" : "Place order"}
