@@ -295,6 +295,16 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
     finally { setBusy(false); }
   };
 
+  const runCodAction = async (order: AnyRow, action: "accept_cod" | "reject_cod" | "collect_cod") => {
+    setBusy(true); setError(""); setMessage("");
+    try {
+      await api("/api/admin/orders", { method: "PATCH", body: JSON.stringify({ orderId: order.id, action }) });
+      setMessage("COD order updated successfully.");
+      await loadAll();
+    } catch (e) { setError(e instanceof Error ? e.message : "Could not update COD order."); }
+    finally { setBusy(false); }
+  };
+
   const updateOrder = async (order: AnyRow, field: "payment" | "fulfillment") => {
     const edit = orderEdits[order.id] || { payment: order.payment_status || "pending_utr", fulfillment: order.fulfillment_status || "confirmed" };
     const body = field === "payment" ? { orderId: order.id, paymentStatus: edit.payment } : { orderId: order.id, fulfillmentStatus: edit.fulfillment };
@@ -395,14 +405,14 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
 
     {tab === "orders" && <div className="admin-card">
       <div className="section-head"><h2>Order management</h2><div className="inline-actions"><input style={{width:220}} value={orderSearch} onChange={e => setOrderSearch(e.target.value)} placeholder="Search order / customer"/><button className="secondary" onClick={() => downloadCsv(filteredOrders)}>Export CSV</button></div></div>
-      {filteredOrders.length === 0 ? <p>No matching orders.</p> : <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>Order / Customer</th><th>Items</th><th>Payment / UTR</th><th>Fulfilment</th><th>Amount</th><th>Update</th></tr></thead><tbody>{filteredOrders.map(o => {
+      {filteredOrders.length === 0 ? <p>No matching orders.</p> : <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>Order / Customer</th><th>Items</th><th>Payment / Acceptance</th><th>Fulfilment</th><th>Amount</th><th>Update</th></tr></thead><tbody>{filteredOrders.map(o => {
         const edit = orderEdits[o.id] || { payment: o.payment_status || "pending_utr", fulfillment: o.fulfillment_status || "confirmed" };
-        const next = ({ confirmed: "packed", packed: "shipped", shipped: "delivered" } as Record<string,string>)[o.fulfillment_status] || o.fulfillment_status;
+        const next = ({ confirmed: "packed", packed: "ready_to_ship", ready_to_ship: "shipped", shipped: "delivered" } as Record<string,string>)[o.fulfillment_status] || o.fulfillment_status;
         return <tr key={o.id}>
           <td><strong>{o.order_number || o.id.slice(0,8)}</strong><br/>{o.customer_name}<br/><span className="muted-text">{o.mobile} · {o.city} · {o.pin_code || o.pincode}</span></td>
           <td>{(o.order_items || []).map((it: AnyRow) => <div key={it.id}>{it.product_name} × {it.quantity}<br/><span className="muted-text">{it.sku}</span></div>)}</td>
-          <td><strong>{o.payment_status}</strong><br/><span className="muted-text">UTR: {o.utr_number || "Not submitted"}</span><select value={edit.payment} onChange={e => setOrderEdits(old => ({...old,[o.id]:{...edit,payment:e.target.value}}))}><option value="accepted">Accept payment</option><option value="rejected">Reject payment</option><option value="pending_utr" disabled>Pending UTR (read only)</option><option value="pending_verification" disabled>Pending verification (read only)</option></select><button className="primary" style={{marginTop:6}} disabled={busy || !["accepted","rejected"].includes(edit.payment) || edit.payment === o.payment_status} onClick={() => updateOrder(o,"payment")}>Submit payment</button></td>
-          <td><strong>{o.fulfillment_status}</strong><select value={edit.fulfillment} onChange={e => setOrderEdits(old => ({...old,[o.id]:{...edit,fulfillment:e.target.value}}))}><option value={o.fulfillment_status}>{o.fulfillment_status}</option>{next !== o.fulfillment_status && <option value={next}>{next}</option>}</select><button className="primary" style={{marginTop:6}} disabled={busy || edit.fulfillment === o.fulfillment_status || o.payment_status !== "accepted"} onClick={() => updateOrder(o,"fulfillment")}>Submit status</button></td>
+          <td><strong>{o.payment_method?.toUpperCase() || "UPI"} · {o.payment_status}</strong><br/><span className="muted-text">Acceptance: {o.order_acceptance_status || "pending"} · UTR: {o.utr_number || "—"}</span>{o.payment_method === "cod" ? <div className="inline-actions" style={{marginTop:6}}>{o.order_acceptance_status === "pending" && <><button className="primary" disabled={busy} onClick={() => runCodAction(o,"accept_cod")}>Accept COD</button><button className="secondary" disabled={busy} onClick={() => runCodAction(o,"reject_cod")}>Reject COD</button></>}{o.fulfillment_status === "delivered" && o.payment_status === "due_on_delivery" && <button className="primary" disabled={busy} onClick={() => runCodAction(o,"collect_cod")}>Record cash received</button>}</div> : <><select value={edit.payment} onChange={e => setOrderEdits(old => ({...old,[o.id]:{...edit,payment:e.target.value}}))}><option value="accepted">Accept payment</option><option value="rejected">Reject payment</option><option value="pending_utr" disabled>Pending UTR (read only)</option><option value="pending_verification" disabled>Pending verification (read only)</option></select><button className="primary" style={{marginTop:6}} disabled={busy || !["accepted","rejected"].includes(edit.payment) || edit.payment === o.payment_status} onClick={() => updateOrder(o,"payment")}>Submit payment</button></>}</td>
+          <td><strong>{o.fulfillment_status}</strong><select value={edit.fulfillment} onChange={e => setOrderEdits(old => ({...old,[o.id]:{...edit,fulfillment:e.target.value}}))}><option value={o.fulfillment_status}>{o.fulfillment_status}</option>{next !== o.fulfillment_status && <option value={next}>{next}</option>}</select><button className="primary" style={{marginTop:6}} disabled={busy || edit.fulfillment === o.fulfillment_status || o.order_acceptance_status !== "accepted" || (o.payment_method !== "cod" && o.payment_status !== "accepted")} onClick={() => updateOrder(o,"fulfillment")}>Submit status</button></td>
           <td>{money(o.total_amount)}</td>
           <td>{dateText(o.created_at)}<br/><span className="muted-text">{o.address || o.street_address || ""}</span></td>
         </tr>;

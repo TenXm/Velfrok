@@ -698,20 +698,12 @@ export default function Storefront() {
                     </strong>
                   </div>
 
-                  <button
-                    className="checkout"
-                    onClick={() =>
-                      alert(
-                        "Checkout is the next build phase. Payment must be confirmed server-side before production orders are accepted."
-                      )
-                    }
-                  >
+                  <Link className="checkout" href="/checkout" onClick={() => setCartOpen(false)}>
                     Continue to Checkout
-                  </button>
+                  </Link>
 
                   <p className="notice">
-                    Your final payable amount will be calculated securely
-                    by the server. This demo cart does not collect payment yet.
+                    Final prices, stock and order totals are verified securely by the server.
                   </p>
                 </div>
               </>
