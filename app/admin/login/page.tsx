@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase";
 
@@ -17,7 +17,7 @@ export default function AdminLoginPage() {
   const [step, setStep] = useState<"password" | "otp">("password");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  const supabase = supabaseBrowser();
+  const supabase = useMemo(() => supabaseBrowser(), []);
 
   useEffect(() => {
     let active = true;
