@@ -1,7 +1,7 @@
 import { requireUser, supabaseForUser } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
 import { rateLimit } from "@/lib/rate-limit";
-import { clean, cleanPhone } from "@/lib/sanitize";
+import { clean } from "@/lib/sanitize";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 function responseError(message, status) { return Response.json({ error: message }, { status }); }
@@ -62,10 +62,12 @@ export async function POST(req) {
     const rpcItems = [...combined.entries()].map(([product_id, quantity]) => ({ product_id, quantity })).sort((a,b) => a.product_id.localeCompare(b.product_id));
     if (!rpcItems.length) return responseError("Your cart is empty.", 400);
 
-    const name = clean(body.name, 80), mobile = cleanPhone(body.phone);
+    const name = clean(body.name, 80);
+    const rawMobile = typeof body.phone === "string" ? body.phone.trim() : "";
+    const mobile = rawMobile;
     const address = clean(body.line1 ?? body.address, 200), city = clean(body.city, 60);
     const state = clean(body.state, 40), pincode = clean(body.pincode, 6);
-    if (!name || mobile.length !== 10 || !address || !city || !state || !/^[0-9]{6}$/.test(pincode)) return responseError("Please enter a valid name, 10-digit mobile number and complete shipping address.", 400);
+    if (!name || !/^[0-9]{10}$/.test(rawMobile) || !address || !city || !state || !/^[0-9]{6}$/.test(pincode)) return responseError("All delivery fields are required. Enter exactly 10 digits for mobile and exactly 6 digits for PIN code.", 400);
     const suppliedEmail = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
     if (suppliedEmail && suppliedEmail !== user.email.toLowerCase()) return responseError("Checkout email must match your verified email address.", 400);
 
