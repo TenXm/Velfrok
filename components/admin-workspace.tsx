@@ -300,7 +300,7 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
       const result = await api("/api/admin/coupons", { method: editingCouponId ? "PATCH" : "POST", body: JSON.stringify(editingCouponId ? { ...payload, id: editingCouponId } : payload) });
       setCoupons(old => editingCouponId ? old.map(c => c.id === editingCouponId ? result.coupon : c) : [result.coupon, ...old]);
       setEditingCouponId(null);
-      setCouponForm({ code: "", discount_type: "percentage", discount_value: "", min_order_value: "0", max_discount: "", expires_at: "", usage_limit: "", per_customer_limit: "" });
+      setCouponForm({ code: "", discount_type: "percentage", discount_value: "", min_order_value: "0", max_discount: "", expires_at: "", usage_limit: "", per_customer_limit: "", is_active: true });
       setMessage(editingCouponId ? "Coupon updated." : "Coupon created.");
     } catch (e) { setError(e instanceof Error ? e.message : "Could not create coupon."); }
     finally { setBusy(false); }
