@@ -72,7 +72,6 @@ export default function CheckoutPage() {
         body: JSON.stringify({
           code: couponCode,
           items: items.map((item) => ({ product_id: item.productId, quantity: item.quantity })),
-          coupon: appliedCoupon?.couponCode || null,
         }),
       });
       const result = await response.json();
@@ -123,6 +122,7 @@ export default function CheckoutPage() {
           pincode: form.pincode,
           email,
           paymentMethod,
+          coupon: appliedCoupon?.couponCode || null,
           items: items.map((item) => ({ product_id: item.productId, quantity: item.quantity })),
         }),
       });
