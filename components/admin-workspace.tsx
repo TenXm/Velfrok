@@ -57,6 +57,36 @@ function AttributePicker({ name, options, selected, onSelected, onAddOption, dis
   </div>;
 }
 
+function CategoryPicker({ categories, value, onChange, onCreate }: {
+  categories: AnyRow[]; value: string; onChange: (id: string) => void;
+  onCreate: (name: string) => Promise<AnyRow | null>;
+}) {
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const matches = categories.filter(c => c.name.toLowerCase().includes(query.trim().toLowerCase())).slice(0, 8);
+  const exact = categories.some(c => c.name.toLowerCase() === query.trim().toLowerCase());
+  const add = async () => {
+    if (!query.trim()) return;
+    const category = await onCreate(query.trim());
+    if (category) { onChange(category.id); setQuery(""); setOpen(false); }
+  };
+  const selected = categories.find(c => c.id === value);
+  return <div className="field">
+    <label>Category *</label>
+    <div className="picker">
+      <input value={query} onFocus={() => setOpen(true)} onChange={e => { setQuery(e.target.value); setOpen(true); }} placeholder={selected ? selected.name : "Search existing categories..."}/>
+      {open && <div className="picker-menu">
+        {matches.map(category => <button type="button" key={category.id} onClick={() => { onChange(category.id); setQuery(""); setOpen(false); }}>{category.name}</button>)}
+        {query.trim() && matches.length === 0 && <p className="empty-match">No matching category found.</p>}
+        {query.trim() && !exact && <button type="button" className="add-option" onClick={add}>+ Add “{query.trim()}” as new category</button>}
+        <button type="button" className="close-menu" onClick={() => setOpen(false)}>Close</button>
+      </div>}
+    </div>
+    {selected && <div className="chips"><span className="chip">{selected.name}<button type="button" onClick={() => onChange("")}>×</button></span></div>}
+    <small>Search first. Add a category only when no match is found.</small>
+  </div>;
+}
+
 export default function AdminWorkspace({ accessToken, initialOrders = [] }: Props) {
   const [tab, setTab] = useState("overview");
   const [orders, setOrders] = useState<AnyRow[]>(initialOrders);
@@ -81,6 +111,7 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
     colours: [] as string[], imagesText: "", dimensions: "", weight: "", attributes: {} as Record<string, string[]>, is_active: true,
   });
   const [newAttributeName, setNewAttributeName] = useState("");
+  const [customAttributeNames, setCustomAttributeNames] = useState<string[]>([]);
   const [couponForm, setCouponForm] = useState({ code: "", discount_type: "percentage", discount_value: "", min_order_value: "0", max_discount: "", expires_at: "", usage_limit: "", per_customer_limit: "" });
 
   const api = useCallback(async (path: string, init: RequestInit = {}) => {
@@ -124,22 +155,33 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
     }
   };
 
+  const createCategory = async (name: string) => {
+    try {
+      const result = await api("/api/admin/catalog", { method: "POST", body: JSON.stringify({ action: "category", name }) });
+      setCategories(old => old.some(c => c.id === result.category.id) ? old : [...old, result.category].sort((a,b) => a.name.localeCompare(b.name)));
+      setMessage(result.existing ? "Selected existing category." : "New category added.");
+      return result.category as AnyRow;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not add category.");
+      return null;
+    }
+  };
+
   const saveCategory = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!categoryName.trim()) return;
     setBusy(true); setError(""); setMessage("");
     try {
-      const result = await api("/api/admin/catalog", { method: "POST", body: JSON.stringify({ action: "category", name: categoryName }) });
-      setCategories(old => [...old, result.category].sort((a,b) => a.name.localeCompare(b.name)));
-      setCategoryName(""); setMessage("Category added successfully.");
-    } catch (e) { setError(e instanceof Error ? e.message : "Could not add category."); }
-    finally { setBusy(false); }
+      const category = await createCategory(categoryName);
+      if (category) setCategoryName("");
+    } finally { setBusy(false); }
   };
 
   const resetProductForm = () => {
     setEditingId(null);
     setProductForm({ name: "", sku: "", category_id: "", description: "", mrp: "", selling_price: "", quantity: "0", colours: [], imagesText: "", dimensions: "", weight: "", attributes: {}, is_active: true });
     setNewAttributeName("");
+    setCustomAttributeNames([]);
   };
 
   const startEditProduct = (product: AnyRow) => {
@@ -246,7 +288,7 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
   const revenue = orders.filter(o => o.payment_status === "accepted").reduce((sum,o) => sum + Number(o.total_amount || 0), 0);
   const lowStock = products.filter(p => Number(p.quantity) < 10).length;
   const discountPct = Number(productForm.mrp) > 0 && Number(productForm.selling_price) >= 0 ? Math.max(0, Math.round(((Number(productForm.mrp) - Number(productForm.selling_price)) / Number(productForm.mrp)) * 100)) : 0;
-  const attributeNames = Array.from(new Set(["Size", "Material", "Brand", "Pattern", "GST Rate", ...options.map(o => o.attribute_name)]));
+  const attributeNames = Array.from(new Set(["Size", "Material", "Brand", "Pattern", "GST Rate", ...options.map(o => o.attribute_name), ...customAttributeNames]));
 
   const styles = `
     .admin-workspace{color:#f3f4fa}.admin-tabs{display:flex;gap:8px;overflow:auto;padding:18px 0}.admin-tabs button{white-space:nowrap;border:1px solid #343147;border-radius:9px;background:#141522;color:#c9c6d8;padding:10px 14px;cursor:pointer}.admin-tabs button.active{background:#8466df;border-color:#8466df;color:#fff}.admin-card{background:#141522;border:1px solid #343147;border-radius:14px;padding:18px;margin:14px 0}.admin-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.admin-stat{background:#141522;border:1px solid #343147;border-radius:12px;padding:16px}.admin-stat span{font-size:12px;color:#a5a6b8}.admin-stat strong{display:block;font-size:25px;margin-top:8px}.admin-workspace h2{font-size:19px;margin:0 0 14px}.admin-workspace h3{font-size:15px;margin:16px 0 8px}.admin-workspace p,.admin-workspace small{color:#a5a6b8}.admin-workspace small{display:block;font-size:11px;margin-top:5px}.admin-workspace label{display:block;font-size:12px;color:#c9c6d8;margin:0 0 6px}.admin-workspace input,.admin-workspace select,.admin-workspace textarea{width:100%;padding:11px 12px;border:1px solid #45415b;border-radius:8px;background:#10111e;color:#f3f4fa;outline:none}.admin-workspace textarea{min-height:85px;resize:vertical}.admin-workspace button.primary{border:0;border-radius:8px;background:#8466df;color:#fff;padding:11px 15px;font-weight:700;cursor:pointer}.admin-workspace button.secondary{border:1px solid #48445e;border-radius:8px;background:transparent;color:#ddd5ff;padding:10px 13px;cursor:pointer}.admin-workspace button.danger{border:1px solid #75414b;border-radius:8px;background:#351b25;color:#ffc4cb;padding:8px 10px;cursor:pointer}.admin-workspace button:disabled{opacity:.5;cursor:wait}.admin-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.field{position:relative;min-width:0}.picker{position:relative}.picker-menu{position:absolute;z-index:20;top:calc(100% + 4px);left:0;right:0;max-height:240px;overflow:auto;background:#202033;border:1px solid #514b70;border-radius:9px;padding:6px;box-shadow:0 12px 28px #0008}.picker-menu button{display:block;width:100%;text-align:left;background:transparent;color:#f3f4fa;border:0;border-radius:6px;padding:9px;cursor:pointer}.picker-menu button:hover{background:#35304b}.picker-menu .add-option{color:#c7b9ff;border-top:1px solid #46415c;margin-top:4px}.picker-menu .close-menu{color:#a5a6b8;font-size:11px}.empty-match{padding:5px 8px;font-size:12px}.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid #50496c;background:#252039;border-radius:20px;padding:4px 9px;font-size:12px}.chip button{background:transparent;border:0;color:#fff;cursor:pointer;font-size:16px}.admin-table-wrap{overflow:auto}.admin-table{width:100%;border-collapse:collapse;min-width:760px;font-size:12px}.admin-table th,.admin-table td{text-align:left;padding:11px 9px;border-bottom:1px solid #292b3b;vertical-align:middle}.admin-table th{color:#aaa4c5;font-weight:600}.admin-table select{min-width:145px;padding:8px}.inline-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.notice{padding:11px 13px;border-radius:9px;margin:12px 0;background:#28233b;color:#d7caff;font-size:13px}.notice.error{background:#351b25;color:#ffc4cb}.form-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}.section-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.product-form{display:grid;gap:13px}.product-row{display:flex;gap:8px;align-items:center}.product-row>*{flex:1}.muted-text{color:#999bb0;font-size:11px}@media(max-width:760px){.admin-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.admin-fields{grid-template-columns:1fr}.admin-card{padding:13px}.admin-stat strong{font-size:21px}}
@@ -298,7 +340,7 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
           <div className="admin-fields">
             <div className="field"><label>Product name *</label><input required value={productForm.name} onChange={e => setProductForm(f => ({...f,name:e.target.value}))} placeholder="Enter product name"/></div>
             <div className="field"><label>SKU / Product code *</label><input required value={productForm.sku} onChange={e => setProductForm(f => ({...f,sku:e.target.value.toUpperCase()}))} placeholder="e.g. VEL-001"/></div>
-            <div className="field"><label>Category *</label><select required value={productForm.category_id} onChange={e => setProductForm(f => ({...f,category_id:e.target.value}))}><option value="">Select category</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+            <CategoryPicker categories={categories} value={productForm.category_id} onChange={id => setProductForm(f => ({...f,category_id:id}))} onCreate={createCategory}/>
             <div className="field"><label>Product status</label><select value={productForm.is_active ? "active" : "inactive"} onChange={e => setProductForm(f => ({...f,is_active:e.target.value==="active"}))}><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
             <div className="field"><label>MRP (₹) *</label><input required type="number" min="0.01" step="0.01" value={productForm.mrp} onChange={e => setProductForm(f => ({...f,mrp:e.target.value}))}/></div>
             <div className="field"><label>Selling price (₹) *</label><input required type="number" min="0.01" step="0.01" value={productForm.selling_price} onChange={e => setProductForm(f => ({...f,selling_price:e.target.value}))}/><small>Automatic discount: {discountPct}%</small></div>
@@ -312,7 +354,7 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
             <AttributePicker name="Colour" options={options} selected={productForm.colours} onSelected={values => setProductForm(f => ({...f,colours:values}))} onAddOption={addOption}/>
             {attributeNames.filter(n => slug(n) !== "colour").map(name => <AttributePicker key={slug(name)} name={name} options={options} selected={productForm.attributes[slug(name)] || []} onSelected={values => setProductForm(f => ({...f,attributes:{...f.attributes,[slug(name)]:values}}))} onAddOption={addOption}/>)}
           </div>
-          <div className="field"><label>Add another parameter</label><div className="product-row"><input value={newAttributeName} onChange={e => setNewAttributeName(e.target.value)} placeholder="e.g. Finish, Style, Capacity"/><button type="button" className="secondary" onClick={() => { const n = newAttributeName.trim(); if (n && !attributeNames.some(v => slug(v) === slug(n))) setProductForm(f => ({...f,attributes:{...f.attributes,[slug(n)]:[]}})); setNewAttributeName(""); }}>Add parameter field</button></div><small>New parameter fields are reusable; their individual values are added through the searchable dropdown.</small></div>
+          <div className="field"><label>Add another parameter</label><div className="product-row"><input value={newAttributeName} onChange={e => setNewAttributeName(e.target.value)} placeholder="e.g. Finish, Style, Capacity"/><button type="button" className="secondary" onClick={() => { const n = newAttributeName.trim(); if (n && !attributeNames.some(v => slug(v) === slug(n))) { setCustomAttributeNames(old => [...old,n]); setProductForm(f => ({...f,attributes:{...f.attributes,[slug(n)]:[]}})); } setNewAttributeName(""); }}>Add parameter field</button></div><small>New parameter fields are reusable; their individual values are added through the searchable dropdown.</small></div>
           <div className="field"><label>Product image URLs (one URL per line)</label><textarea value={productForm.imagesText} onChange={e => setProductForm(f => ({...f,imagesText:e.target.value}))} placeholder={"https://.../main-product.webp\nhttps://.../second-angle.webp"}/><small>Images are saved to the existing images JSON field. Storage upload can be connected once the product-images bucket and admin storage policies are confirmed.</small></div>
           <div className="form-actions"><button className="primary" disabled={busy}>{busy ? "Saving..." : editingId ? "Submit product changes" : "Submit new product"}</button><button type="button" className="secondary" onClick={resetProductForm}>Clear form</button></div>
         </form>
