@@ -3,6 +3,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase";
+import AdminWorkspace from "@/components/admin-workspace";
 
 type Order = {
   id: string;
@@ -25,6 +26,7 @@ export default function AdminPage() {
   const [message, setMessage] = useState("");
   const [email, setEmail] = useState("");
   const [orders, setOrders] = useState<Order[]>([]);
+  const [accessToken, setAccessToken] = useState("");
   const [factorId, setFactorId] = useState("");
   const [challengeId, setChallengeId] = useState("");
   const [qrCode, setQrCode] = useState("");
@@ -45,6 +47,8 @@ export default function AdminPage() {
       setStep("signed-out");
       return;
     }
+
+    setAccessToken(session.access_token);
 
     const response = await fetch("/api/admin/orders", {
       headers: {
@@ -243,6 +247,7 @@ export default function AdminPage() {
   async function signOut() {
     await supabase.auth.signOut();
     setOrders([]);
+    setAccessToken("");
     setEmail("");
     setStep("signed-out");
   }
@@ -421,185 +426,16 @@ export default function AdminPage() {
           </div>
 
           {step === "ready" && (
-            <div className="actions">
-              <button className="secondary" onClick={refreshOrders}>
-                Refresh
-              </button>
-              <button className="secondary" onClick={signOut}>
-                Sign out
-              </button>
-            </div>
-          )}
-        </header>
-
-        {step === "checking" && (
-          <section className="panel">
-            <h1>Checking secure access</h1>
-            <p>Please wait while we verify your administrator account.</p>
-          </section>
-        )}
-
-        {step === "signed-out" && (
-          <section className="panel">
-            <h1>Sign in to Velfrok</h1>
-            <p>You must sign in before accessing the Admin Dashboard.</p>
-            <a
-              className="button"
-              href="/login?next=%2Fadmin"
-              style={{ display: "block", textDecoration: "none" }}
-            >
-              Sign in
-            </a>
-          </section>
-        )}
-
-        {step === "unauthorized" && (
-          <section className="panel">
-            <h1>Admin access required</h1>
-            <p>{message || "This account is not an authorized administrator."}</p>
-            <button className="button" onClick={signOut}>
-              Sign out
-            </button>
-          </section>
-        )}
-
-        {step === "enroll" && (
-          <section className="panel">
-            <h1>Set up Admin MFA</h1>
-            <p>
-              Install Google Authenticator, Microsoft Authenticator or another
-              compatible authenticator app. Scan this QR code.
-            </p>
-
-            {qrCode && (
-              <img className="qr" src={qrCode} alt="Authenticator QR code" />
-            )}
-
-            <p>If you cannot scan the QR code, enter this setup key manually:</p>
-            <code className="secret">{secret}</code>
-
-            <form onSubmit={verifyCode}>
-              <p>Enter the current 6-digit code from your authenticator app.</p>
-              <input
-                className="input"
-                value={code}
-                onChange={(event) =>
-                  setCode(event.target.value.replace(/\D/g, "").slice(0, 6))
-                }
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                placeholder="000000"
-                maxLength={6}
-                required
-              />
-              <button
-                className="button"
-                disabled={loading || code.length !== 6}
-              >
-                {loading ? "Verifying..." : "Verify and activate MFA"}
-              </button>
-            </form>
-
-            {message && <p className="message">{message}</p>}
-          </section>
-        )}
-
-        {step === "challenge" && (
-          <section className="panel">
-            <h1>Admin verification</h1>
-            <p>
-              Open your authenticator app and enter the current 6-digit
-              Velfrok code.
-            </p>
-
-            <form onSubmit={verifyCode}>
-              <input
-                className="input"
-                value={code}
-                onChange={(event) =>
-                  setCode(event.target.value.replace(/\D/g, "").slice(0, 6))
-                }
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                placeholder="000000"
-                maxLength={6}
-                required
-              />
-
-              <button
-                className="button"
-                disabled={loading || code.length !== 6}
-              >
-                {loading ? "Verifying..." : "Verify and continue"}
-              </button>
-            </form>
-
-            {message && <p className="message">{message}</p>}
-          </section>
-        )}
-
-        {step === "error" && (
-          <section className="panel">
-            <h1>Something went wrong</h1>
-            <p className="message">{message}</p>
-            <button className="button" onClick={initialize}>
-              Try again
-            </button>
-            <button className="secondary" onClick={signOut}>
-              Sign out
-            </button>
-          </section>
-        )}
-
-        {step === "ready" && (
           <>
             <section style={{ marginTop: 35 }}>
-              <p>ADMIN WORKSPACE / OVERVIEW</p>
+              <p>ADMIN WORKSPACE</p>
               <h1>Welcome back, {email}</h1>
-              <p>Your Velfrok store dashboard is ready.</p>
+              <p>Manage your Velfrok products, parameters, inventory, orders and coupons.</p>
             </section>
-
-            <section className="stats">
-              <div className="stat">
-                <span>Total orders</span>
-                <strong>{total}</strong>
-              </div>
-              <div className="stat">
-                <span>Pending payments</span>
-                <strong>{pending}</strong>
-              </div>
-              <div className="stat">
-                <span>Paid orders</span>
-                <strong>{paid}</strong>
-              </div>
-              <div className="stat">
-                <span>Active orders</span>
-                <strong>{active}</strong>
-              </div>
-            </section>
-
-            <section className="orders">
-              <h2>Recent orders</h2>
-
-              {orders.length === 0 ? (
-                <p>No customer orders yet.</p>
-              ) : (
-                orders.slice(0, 20).map((order) => (
-                  <div className="order" key={order.id}>
-                    <strong>
-                      Order #{order.id.slice(0, 8).toUpperCase()}
-                    </strong>
-                    <span className="muted">
-                      {order.status || "Unknown"} /{" "}
-                      {order.payment_status || "Unknown"}
-                    </span>
-                  </div>
-                ))
-              )}
-            </section>
+            <AdminWorkspace accessToken={accessToken} initialOrders={orders} />
           </>
         )}
-      </div>
+            </div>
     </main>
   );
 }
