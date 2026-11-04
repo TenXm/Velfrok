@@ -35,11 +35,13 @@ import { storeConfig } from "@/lib/store-config";
 type CartItem = {
   product: Product;
   quantity: number;
+  color?: string;
 };
 
 type StoredCartItem = {
   productId: string;
   quantity: number;
+  color?: string;
 };
 
 type Collection = "all" | "new" | "home" | "tech";
@@ -122,7 +124,7 @@ export default function Storefront() {
 
         if (Array.isArray(parsed)) {
           const restored: CartItem[] = [];
-          const quantities = new Map<string, number>();
+          const quantities = new Map<string, { productId: string; quantity: number; color?: string }>();
 
           for (const item of parsed) {
             if (
@@ -141,21 +143,23 @@ export default function Storefront() {
 
             if (!product) continue;
 
-            const combined =
-              (quantities.get(item.productId) || 0) + item.quantity;
+            const color =
+              typeof item.color === "string" ? item.color.slice(0, 40) : undefined;
+            const key = `${item.productId}::${color || ""}`;
+            const combined = (quantities.get(key)?.quantity || 0) + item.quantity;
 
             if (combined > 10) continue;
 
-            quantities.set(item.productId, combined);
+            quantities.set(key, { productId: item.productId, quantity: combined, color });
           }
 
-          for (const [productId, quantity] of quantities) {
+          for (const entry of quantities.values()) {
             const product = products.find(
-              (candidate) => candidate.id === productId
+              (candidate) => candidate.id === entry.productId
             );
 
             if (product) {
-              restored.push({ product, quantity });
+              restored.push({ product, quantity: entry.quantity, color: entry.color });
             }
           }
 
@@ -183,6 +187,7 @@ export default function Storefront() {
       const storedCart: StoredCartItem[] = cart.map((item) => ({
         productId: item.product.id,
         quantity: item.quantity,
+        ...(item.color ? { color: item.color } : {}),
       }));
 
       localStorage.setItem(
@@ -241,34 +246,37 @@ export default function Storefront() {
     0
   );
 
-  function add(product: Product) {
+  function add(product: Product, color?: string) {
+    if (product.stock < 1) return;
+    const selectedColor = color || "";
+
     setCart((current) => {
       const existing = current.find(
-        (item) => item.product.id === product.id
+        (item) => item.product.id === product.id && (item.color || "") === selectedColor
       );
 
       if (existing) {
-        if (existing.quantity >= 10) return current;
+        if (existing.quantity >= Math.min(10, product.stock)) return current;
 
         return current.map((item) =>
-          item.product.id === product.id
-            ? { ...item, quantity: item.quantity + 1 }
+          item.product.id === product.id && (item.color || "") === selectedColor
+            ? { ...item, quantity: Math.min(Math.min(10, product.stock), item.quantity + 1) }
             : item
         );
       }
 
-      return [...current, { product, quantity: 1 }];
+      return [...current, { product, quantity: 1, ...(selectedColor ? { color: selectedColor } : {}) }];
     });
   }
 
-  function adjust(id: string, delta: number) {
+  function adjust(id: string, delta: number, color?: string) {
     setCart((current) =>
       current
         .map((item) =>
-          item.product.id === id
+          item.product.id === id && (item.color || "") === (color || "")
             ? {
                 ...item,
-                quantity: Math.min(10, item.quantity + delta),
+                quantity: Math.min(Math.min(10, item.product.stock), item.quantity + delta),
               }
             : item
         )
@@ -679,11 +687,11 @@ export default function Storefront() {
 
                     <div className="cart-line-main">
                       <strong>{item.product.name}</strong>
-                      <small>{money(item.product.price)}</small>
+                      <small>{money(item.product.price)}{item.color ? ` · ${item.color}` : ""}</small>
 
                       <div className="qty">
                         <button
-                          onClick={() => adjust(item.product.id, -1)}
+                          onClick={() => adjust(item.product.id, -1, item.color)}
                           aria-label="Decrease quantity"
                         >
                           <Minus size={13} />
@@ -692,9 +700,9 @@ export default function Storefront() {
                         <span>{item.quantity}</span>
 
                         <button
-                          onClick={() => adjust(item.product.id, 1)}
+                          onClick={() => adjust(item.product.id, 1, item.color)}
                           aria-label="Increase quantity"
-                          disabled={item.quantity >= 10}
+                          disabled={item.quantity >= Math.min(10, item.product.stock)}
                         >
                           <Plus size={13} />
                         </button>
@@ -785,9 +793,12 @@ function ProductCard({
           )}
         </div>
 
-        <button className="add" onClick={onAdd}>
+        <small className="product-stock">
+          {product.stock < 1 ? "Out of stock" : product.stock < 10 ? `Only ${product.stock} left` : "In stock"}
+        </small>
+        <button className="add" onClick={onAdd} disabled={product.stock < 1}>
           <ShoppingCart size={14} />
-          Add to Cart
+          {product.stock < 1 ? "Out of Stock" : "Add to Cart"}
         </button>
       </div>
     </article>
