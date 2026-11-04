@@ -51,7 +51,7 @@ begin
   end if;
 
   claims := pg_catalog.jsonb_set(
-    pg_catalog.coalesce(claims, '{}'::jsonb),
+    coalesce(claims, '{}'::jsonb),
     '{admin_email_otp_verified}',
     pg_catalog.to_jsonb(otp_verified),
     true
@@ -86,3 +86,31 @@ $$;
 
 revoke all on function public.is_verified_admin() from public;
 grant execute on function public.is_verified_admin() to authenticated;
+
+
+-- Increment failed-code attempts atomically to prevent concurrent guesses bypassing the limit.
+create or replace function public.admin_email_otp_increment_attempt(
+  p_user_id uuid,
+  p_session_id uuid
+)
+returns integer
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  next_attempts integer;
+begin
+  update public.admin_email_otp_challenges
+  set attempts = attempts + 1
+  where user_id = p_user_id
+    and session_id = p_session_id
+    and attempts < 5
+  returning attempts into next_attempts;
+
+  return next_attempts;
+end;
+$$;
+
+revoke all on function public.admin_email_otp_increment_attempt(uuid, uuid) from public, anon, authenticated;
+grant execute on function public.admin_email_otp_increment_attempt(uuid, uuid) to service_role;
