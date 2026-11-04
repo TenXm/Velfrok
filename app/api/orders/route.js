@@ -89,7 +89,7 @@ export async function POST(req) {
       console.error("Atomic order creation failed:", orderError?.message || "No order ID returned");
       const message = orderError?.message || "";
       if (/stock|unavailable|insufficient/i.test(message)) return responseError("One or more products are no longer available in the requested quantity.", 409);
-      if (/invalid|quantity|cart|address|signed in|email|COD/i.test(message)) return responseError("Please check your order and shipping details.", 400);
+      if (/invalid|quantity|cart|address|signed in|email|COD|coupon|discount|minimum|usage|expired/i.test(message)) return responseError("Please check your order and shipping details.", 400);
       return responseError("We could not create your order. Please try again later.", 500);
     }
     const { data: order, error: lookupError } = await db.from("orders")
