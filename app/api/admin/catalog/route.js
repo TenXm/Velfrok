@@ -165,7 +165,7 @@ export async function PATCH(req) {
       const id = body.id || "";
       const value = text(body.value, 80);
       if (!UUID.test(id) || !value) return fail("Invalid parameter option.");
-      const normalizedValue = value.toLocaleLowerCase("en-IN").replace(/\\s+/g, " ");
+      const normalizedValue = value.toLocaleLowerCase("en-IN").replace(/\s+/g, " ");
       const { data, error } = await supabaseAdmin().from("product_attribute_options")
         .update({ value, normalized_value: normalizedValue })
         .eq("id", id).eq("is_active", true).select("*").maybeSingle();
