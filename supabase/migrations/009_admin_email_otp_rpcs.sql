@@ -1,3 +1,5 @@
+begin;
+
 -- Replace legacy aal2 checks with the verified Admin email OTP claim.
 -- public.is_verified_admin() checks auth.uid(), admin_email_otp_verified=true,
 -- and an active velfrok_admins row with role='admin'.
@@ -121,3 +123,5 @@ revoke all on function public.record_cod_payment(uuid) from public, anon;
 grant execute on function public.accept_cod_order(uuid) to authenticated;
 grant execute on function public.reject_cod_order(uuid) to authenticated;
 grant execute on function public.record_cod_payment(uuid) to authenticated;
+
+commit;
