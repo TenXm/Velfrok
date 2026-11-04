@@ -84,7 +84,7 @@ begin
       raise exception 'Invalid inventory change';
     end;
 
-    if v_mode not in ('add', 'subtract', 'set') or v_amount < 0 then
+    if v_mode is null or v_mode not in ('add', 'subtract', 'set') or v_amount is null or v_amount < 0 then
       raise exception 'Invalid inventory mode or quantity';
     end if;
 
