@@ -7,7 +7,7 @@ import { rateLimit, clientIp } from "@/lib/rate-limit";
 const PAYMENT_STATUSES = ["accepted", "rejected"];
 
 const NEXT_STATUS = {
-  pending: "packed",
+  confirmed: "packed",
   packed: "shipped",
   shipped: "delivered",
   delivered: null,
