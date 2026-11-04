@@ -6,11 +6,9 @@ export async function POST(req) {
   try {
     const hookSecret = process.env.SEND_EMAIL_HOOK_SECRET;
     const resendKey = process.env.RESEND_API_KEY;
-    const testRecipient = process.env.RESEND_TEST_RECIPIENT;
-    const fromEmail =
-      process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
+    const fromEmail = process.env.RESEND_FROM_EMAIL;
 
-    if (!hookSecret || !resendKey || !testRecipient) {
+    if (!hookSecret || !resendKey || !fromEmail) {
       return Response.json(
         { error: "Server configuration missing." },
         { status: 500 }
@@ -44,16 +42,6 @@ export async function POST(req) {
       );
     }
 
-    if (
-      email.trim().toLowerCase() !==
-      testRecipient.trim().toLowerCase()
-    ) {
-      return Response.json(
-        { error: "Only the configured test recipient is allowed." },
-        { status: 403 }
-      );
-    }
-
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -62,7 +50,7 @@ export async function POST(req) {
       },
       body: JSON.stringify({
         from: fromEmail,
-        to: [testRecipient],
+        to: [email.trim()],
         subject: "Your Velfrok verification code",
         text: `Your Velfrok verification code is: ${token}\n\nIf you did not request this code, please ignore this email.`,
       }),
