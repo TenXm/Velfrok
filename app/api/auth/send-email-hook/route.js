@@ -1,4 +1,5 @@
 import { Webhook } from "standardwebhooks";
+import { supabaseAdmin } from "@/lib/supabase";
 
 export const runtime = "nodejs";
 
@@ -42,6 +43,31 @@ export async function POST(req) {
       );
     }
 
+    const normalizedEmail = email.trim().toLowerCase();
+    const emailDomain = normalizedEmail.split("@").pop();
+
+    const { data: disposableDomain, error: domainLookupError } =
+      await supabaseAdmin()
+        .from("disposable_email_domains")
+        .select("domain")
+        .eq("domain", emailDomain)
+        .maybeSingle();
+
+    if (domainLookupError) {
+      console.error("Disposable email domain lookup failed:", domainLookupError);
+      return Response.json(
+        { error: "Email validation is temporarily unavailable." },
+        { status: 503 }
+      );
+    }
+
+    if (disposableDomain) {
+      return Response.json(
+        { error: "Temporary or disposable email addresses are not accepted. Please use a permanent email address." },
+        { status: 403 }
+      );
+    }
+
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -50,7 +76,7 @@ export async function POST(req) {
       },
       body: JSON.stringify({
         from: fromEmail,
-        to: [email.trim()],
+        to: [normalizedEmail],
         subject: "Your Velfrok verification code",
         text: `Your Velfrok verification code is: ${token}\n\nIf you did not request this code, please ignore this email.`,
       }),
