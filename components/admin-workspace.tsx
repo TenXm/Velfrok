@@ -117,7 +117,7 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
   const api = useCallback(async (path: string, init: RequestInit = {}) => {
     const response = await fetch(path, {
       ...init,
-      headers: { Authorization: `Bearer ${accessToken}`, ...(init.body ? { "Content-Type": "application/json" } : {}), ...(init.headers || {}) },
+      headers: { Authorization: `Bearer ${accessToken}`, ...(init.body && !(init.body instanceof FormData) ? { "Content-Type": "application/json" } : {}), ...(init.headers || {}) },
       cache: "no-store",
     });
     const result = await response.json().catch(() => ({}));
@@ -194,6 +194,19 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
     });
     setTab("products");
     window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const uploadImages = async (files: FileList | null) => {
+    if (!files?.length) return;
+    setBusy(true); setError(""); setMessage("");
+    try {
+      const form = new FormData();
+      Array.from(files).slice(0, 12).forEach(file => form.append("files", file));
+      const result = await api("/api/admin/product-images", { method: "POST", body: form });
+      setProductForm(f => ({ ...f, imagesText: [f.imagesText, ...(result.images || [])].filter(Boolean).join("\\n") }));
+      setMessage(`${(result.images || []).length} product image(s) uploaded.`);
+    } catch (e) { setError(e instanceof Error ? e.message : "Image upload failed."); }
+    finally { setBusy(false); }
   };
 
   const saveProduct = async (event: React.FormEvent) => {
@@ -355,7 +368,8 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
             {attributeNames.filter(n => slug(n) !== "colour").map(name => <AttributePicker key={slug(name)} name={name} options={options} selected={productForm.attributes[slug(name)] || []} onSelected={values => setProductForm(f => ({...f,attributes:{...f.attributes,[slug(name)]:values}}))} onAddOption={addOption}/>)}
           </div>
           <div className="field"><label>Add another parameter</label><div className="product-row"><input value={newAttributeName} onChange={e => setNewAttributeName(e.target.value)} placeholder="e.g. Finish, Style, Capacity"/><button type="button" className="secondary" onClick={() => { const n = newAttributeName.trim(); if (n && !attributeNames.some(v => slug(v) === slug(n))) { setCustomAttributeNames(old => [...old,n]); setProductForm(f => ({...f,attributes:{...f.attributes,[slug(n)]:[]}})); } setNewAttributeName(""); }}>Add parameter field</button></div><small>New parameter fields are reusable; their individual values are added through the searchable dropdown.</small></div>
-          <div className="field"><label>Product image URLs (one URL per line)</label><textarea value={productForm.imagesText} onChange={e => setProductForm(f => ({...f,imagesText:e.target.value}))} placeholder={"https://.../main-product.webp\nhttps://.../second-angle.webp"}/><small>Images are saved to the existing images JSON field. Storage upload can be connected once the product-images bucket and admin storage policies are confirmed.</small></div>
+          <div className="field"><label>Upload product images (JPG, PNG or WebP · max 5 MB each)</label><input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={e => { void uploadImages(e.target.files); e.currentTarget.value = ""; }}/><small>Uploads go to the private admin upload endpoint and are stored in the public product-images bucket. Up to 12 images per upload.</small></div>
+          <div className="field"><label>Product image URLs (one URL per line)</label><textarea value={productForm.imagesText} onChange={e => setProductForm(f => ({...f,imagesText:e.target.value}))} placeholder={"https://.../main-product.webp\nhttps://.../second-angle.webp"}/><small>Uploaded images are added here and saved to the existing images JSON field. You can also paste your own HTTPS image URLs.</small></div>
           <div className="form-actions"><button className="primary" disabled={busy}>{busy ? "Saving..." : editingId ? "Submit product changes" : "Submit new product"}</button><button type="button" className="secondary" onClick={resetProductForm}>Clear form</button></div>
         </form>
       </div>
