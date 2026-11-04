@@ -188,7 +188,7 @@ export default function CheckoutPage() {
             {!token && (
               <div className="checkout-login-note">
                 <span>↗</span>
-                <p>Please <Link href="/login">sign in</Link> to place your order. Your cart will be ready when you return.</p>
+                <p>Please <Link href="/login?next=%2Fcheckout">sign in</Link> to place your order. Your cart will be ready when you return.</p>
               </div>
             )}
             <form className="checkout-layout" onSubmit={submit}>
@@ -237,7 +237,7 @@ export default function CheckoutPage() {
                   </div>
                   {appliedCoupon && <p role="status" style={{ color: "#176344", fontSize: 13, marginBottom: 0 }}>✓ {appliedCoupon.couponCode} applied — you save ₹{Number(appliedCoupon.discountAmount).toFixed(2)}.</p>}
                   {couponError && <p role="alert" style={{ color: "#a3332d", fontSize: 12, marginBottom: 0 }}>{couponError}</p>}
-                  {!token && <p className="checkout-payment-footnote">Sign in to validate and apply a coupon.</p>}
+                  {!token && <p className="checkout-payment-footnote">Sign in to validate and apply a coupon. <Link href="/login?next=%2Fcheckout">Sign in or create an account →</Link></p>}
                 </section>
 
                 <section className="checkout-card">
