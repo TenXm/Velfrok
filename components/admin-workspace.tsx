@@ -105,6 +105,7 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
   const [stockAmount, setStockAmount] = useState("1");
   const [orderEdits, setOrderEdits] = useState<Record<string, { payment: string; fulfillment: string }>>({});
   const [categoryName, setCategoryName] = useState("");
+  const [categoryManagerSelection, setCategoryManagerSelection] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [productForm, setProductForm] = useState({
     name: "", sku: "", category_id: "", description: "", mrp: "", selling_price: "", quantity: "0",
@@ -376,7 +377,7 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
 
       <div className="admin-card">
         <div className="section-head"><h2>Categories</h2><span className="muted-text">{categories.length} total</span></div>
-        <form className="product-row" onSubmit={saveCategory}><input value={categoryName} onChange={e => setCategoryName(e.target.value)} placeholder="Search first; enter a new category name"/><button className="primary" disabled={busy || !categoryName.trim()}>+ Add category</button></form>
+        <CategoryPicker categories={categories} value={categoryManagerSelection} onChange={setCategoryManagerSelection} onCreate={createCategory}/>
         <div className="chips">{categories.map(c => <span className="chip" key={c.id}>{c.name}</span>)}</div>
       </div>
 
