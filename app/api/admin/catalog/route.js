@@ -110,6 +110,12 @@ export async function POST(req) {
     if (body.action === "product") {
       const product = normalizeProduct(body.product);
       if (product.error) return fail(product.error);
+      const [skuMatch, slugMatch] = await Promise.all([
+        db.from("products").select("id").eq("sku", product.value.sku).limit(1).maybeSingle(),
+        db.from("products").select("id").eq("slug", product.value.slug).limit(1).maybeSingle(),
+      ]);
+      if (skuMatch.error || slugMatch.error) return fail("Could not check for duplicate product details.", 500);
+      if (skuMatch.data || slugMatch.data) return fail("SKU or product URL already exists. Use a unique SKU/name.", 409);
       const { data, error } = await db.from("products").insert(product.value).select("*").single();
       if (error) {
         console.error("Product create failed:", error.message);
@@ -188,7 +194,14 @@ export async function PATCH(req) {
     if (body?.action !== "product" || !UUID.test(body.id || "")) return fail("Invalid product update.");
     const normalized = normalizeProduct(body.product);
     if (normalized.error) return fail(normalized.error);
-    const { data, error } = await supabaseAdmin().from("products")
+    const db = supabaseAdmin();
+    const [skuMatch, slugMatch] = await Promise.all([
+      db.from("products").select("id").eq("sku", normalized.value.sku).neq("id", body.id).limit(1).maybeSingle(),
+      db.from("products").select("id").eq("slug", normalized.value.slug).neq("id", body.id).limit(1).maybeSingle(),
+    ]);
+    if (skuMatch.error || slugMatch.error) return fail("Could not check for duplicate product details.", 500);
+    if (skuMatch.data || slugMatch.data) return fail("SKU or product URL already exists. Use a unique SKU/name.", 409);
+    const { data, error } = await db.from("products")
       .update(normalized.value).eq("id", body.id).select("*").maybeSingle();
     if (error) {
       console.error("Product update failed:", error.message);
