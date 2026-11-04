@@ -1,7 +1,7 @@
 e# Master Product Requirements Document (PRD): Full-Stack Secure Online Shop (Build to Google Indexing)
 
 **Document Version:** 1.0 (Combined Aesthetic, Functional, Security & SEO Specification)  
-**Target Stack (100% Free Tier):** GitHub · Next.js (App Router) · Supabase (Postgres, Auth, Storage, RLS) · Resend / Brevo (Free Email OTP) · Upstash Redis (Free Rate Limiting) · Vercel · Google Search Console
+**Target Stack (100% Free Tier):** GitHub · Next.js (App Router) · Supabase (Postgres, Auth, Storage, RLS) · Resend (Free Email OTP) · Upstash Redis (Free Rate Limiting) · Vercel · Google Search Console
 
 ---
 
@@ -23,7 +23,7 @@ The platform consists of two primary applications sharing a strict server-enforc
 | **Frontend & Server Runtime** | **Next.js (App Router) on Vercel** | Free Hobby tier (100 GB bandwidth/month, serverless functions, Server Actions, automatic HTTPS & edge caching). |
 | **Database & Row-Level Security** | **Supabase Postgres** | 500 MB database storage, unlimited API requests, native Row-Level Security (RLS), and atomic PL/pgSQL transactions. |
 | **Product Image Hosting** | **Supabase Storage** | 1 GB free object storage with CDN caching for multi-image product galleries and UTR guide assets. |
-| **Customer & Admin 2FA Auth** | **Supabase Auth + Resend / Brevo SMTP** | Free Email OTP & Password + MFA (`aal2`) paired with Resend (3,000 free emails/mo) or Brevo (300 free emails/day). *(Optional: Firebase Auth Spark Tier for 10k/mo free SMS OTP, or verified 10-digit mobile capture at checkout).* |
+| **Customer & Admin 2FA Auth** | **Supabase Auth + Resend Email Hook** | Free Email OTP & Password + MFA (`aal2`) with Resend email delivery through the signed Supabase Auth Send Email Hook. *(Optional: Firebase Auth Spark Tier for 10k/mo free SMS OTP, or verified 10-digit mobile capture at checkout).* |
 | **Rate Limiting & Brute-Force Protection** | **Upstash Redis** | 10,000 free requests/day to cap OTP login requests, coupon lookups, and UTR submissions. |
 | **Barcode & QR Generation** | **`bwip-js` / `jsbarcode` + `qrcode`** | Open-source server/client SVG rendering for dynamic UPI payment QR codes and Tax Invoice Code-128 barcodes. |
 | **Search Engine Discovery** | **Google Search Console** | Free domain verification, dynamic `sitemap.xml` ingestion, and `Product` JSON-LD rich snippet indexing. |
@@ -180,7 +180,7 @@ Before writing SQL migrations, the following plain-english access rules govern e
 
 ### Phase 1: Project Initialization & Free-Tier Cloud Provisioning
 1. Create a GitHub repository and initialize a **Next.js (App Router) + TypeScript + Tailwind CSS + Zod** project.
-2. Create a free **Supabase** project and configure a free **Resend** or **Brevo** SMTP key under Supabase Auth settings so Email OTPs deliver reliably with zero cost.
+2. Create a free **Supabase** project, configure **Resend** with a verified sender address, and connect the Supabase Auth **Send Email Hook** to the application's signed email endpoint using the hook secret and Resend API key.
 3. Create a free **Upstash Redis** database and copy `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` into `.env.local`.
 
 ### Phase 2: Database Schema, Atomic RPCs & Supabase RLS Lockdown

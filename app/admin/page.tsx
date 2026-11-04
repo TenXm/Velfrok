@@ -3,6 +3,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase";
+import AdminWorkspace from "@/components/admin-workspace";
 
 type Order = {
   id: string;
@@ -25,6 +26,7 @@ export default function AdminPage() {
   const [message, setMessage] = useState("");
   const [email, setEmail] = useState("");
   const [orders, setOrders] = useState<Order[]>([]);
+  const [accessToken, setAccessToken] = useState("");
   const [factorId, setFactorId] = useState("");
   const [challengeId, setChallengeId] = useState("");
   const [qrCode, setQrCode] = useState("");
@@ -45,6 +47,8 @@ export default function AdminPage() {
       setStep("signed-out");
       return;
     }
+
+    setAccessToken(session.access_token);
 
     const response = await fetch("/api/admin/orders", {
       headers: {
@@ -243,6 +247,7 @@ export default function AdminPage() {
   async function signOut() {
     await supabase.auth.signOut();
     setOrders([]);
+    setAccessToken("");
     setEmail("");
     setStep("signed-out");
   }
@@ -554,49 +559,11 @@ export default function AdminPage() {
         {step === "ready" && (
           <>
             <section style={{ marginTop: 35 }}>
-              <p>ADMIN WORKSPACE / OVERVIEW</p>
+              <p>ADMIN WORKSPACE</p>
               <h1>Welcome back, {email}</h1>
-              <p>Your Velfrok store dashboard is ready.</p>
+              <p>Manage your Velfrok products, parameters, inventory, orders and coupons.</p>
             </section>
-
-            <section className="stats">
-              <div className="stat">
-                <span>Total orders</span>
-                <strong>{total}</strong>
-              </div>
-              <div className="stat">
-                <span>Pending payments</span>
-                <strong>{pending}</strong>
-              </div>
-              <div className="stat">
-                <span>Paid orders</span>
-                <strong>{paid}</strong>
-              </div>
-              <div className="stat">
-                <span>Active orders</span>
-                <strong>{active}</strong>
-              </div>
-            </section>
-
-            <section className="orders">
-              <h2>Recent orders</h2>
-
-              {orders.length === 0 ? (
-                <p>No customer orders yet.</p>
-              ) : (
-                orders.slice(0, 20).map((order) => (
-                  <div className="order" key={order.id}>
-                    <strong>
-                      Order #{order.id.slice(0, 8).toUpperCase()}
-                    </strong>
-                    <span className="muted">
-                      {order.status || "Unknown"} /{" "}
-                      {order.payment_status || "Unknown"}
-                    </span>
-                  </div>
-                ))
-              )}
-            </section>
+            <AdminWorkspace accessToken={accessToken} initialOrders={orders} />
           </>
         )}
       </div>

@@ -26,6 +26,7 @@ import {
   Droplet,
 } from "lucide-react";
 
+import Link from "next/link";
 import { getProducts, type Product } from "@/lib/products";
 import AuthStatus from "@/components/auth-status";
 import { storeConfig } from "@/lib/store-config";
@@ -33,11 +34,13 @@ import { storeConfig } from "@/lib/store-config";
 type CartItem = {
   product: Product;
   quantity: number;
+  selectedOptions?: Record<string, string>;
 };
 
 type StoredCartItem = {
   productId: string;
   quantity: number;
+  options?: Record<string, string>;
 };
 
 type Collection = "all" | "new" | "home" | "tech";
@@ -120,43 +123,19 @@ export default function Storefront() {
 
         if (Array.isArray(parsed)) {
           const restored: CartItem[] = [];
-          const quantities = new Map<string, number>();
-
           for (const item of parsed) {
-            if (
-              !item ||
-              typeof item.productId !== "string" ||
-              !Number.isInteger(item.quantity) ||
-              item.quantity < 1 ||
-              item.quantity > 10
-            ) {
-              continue;
-            }
-
-            const product = products.find(
-              (candidate) => candidate.id === item.productId
-            );
-
+            if (!item || typeof item.productId !== "string" ||
+                !Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 10) continue;
+            const product = products.find(candidate => candidate.id === item.productId);
             if (!product) continue;
-
-            const combined =
-              (quantities.get(item.productId) || 0) + item.quantity;
-
-            if (combined > 10) continue;
-
-            quantities.set(item.productId, combined);
-          }
-
-          for (const [productId, quantity] of quantities) {
-            const product = products.find(
-              (candidate) => candidate.id === productId
+            const selectedOptions = item.options && typeof item.options === "object" ? item.options : {};
+            const existing = restored.find(candidate =>
+              candidate.product.id === product.id &&
+              JSON.stringify(candidate.selectedOptions || {}) === JSON.stringify(selectedOptions)
             );
-
-            if (product) {
-              restored.push({ product, quantity });
-            }
+            if (existing) existing.quantity = Math.min(10, existing.quantity + item.quantity);
+            else restored.push({ product, quantity: item.quantity, selectedOptions });
           }
-
           setCart(restored);
         }
       }
@@ -181,6 +160,7 @@ export default function Storefront() {
       const storedCart: StoredCartItem[] = cart.map((item) => ({
         productId: item.product.id,
         quantity: item.quantity,
+        options: item.selectedOptions || {},
       }));
 
       localStorage.setItem(
@@ -239,10 +219,11 @@ export default function Storefront() {
     0
   );
 
-  function add(product: Product) {
+  function add(product: Product, selectedOptions: Record<string, string> = {}) {
     setCart((current) => {
       const existing = current.find(
-        (item) => item.product.id === product.id
+        (item) => item.product.id === product.id &&
+          JSON.stringify(item.selectedOptions || {}) === JSON.stringify(selectedOptions)
       );
 
       if (existing) {
@@ -255,15 +236,15 @@ export default function Storefront() {
         );
       }
 
-      return [...current, { product, quantity: 1 }];
+      return [...current, { product, quantity: 1, selectedOptions }];
     });
   }
 
-  function adjust(id: string, delta: number) {
+  function adjust(id: string, delta: number, selectedOptions: Record<string, string> = {}) {
     setCart((current) =>
       current
         .map((item) =>
-          item.product.id === id
+          item.product.id === id && JSON.stringify(item.selectedOptions || {}) === JSON.stringify(selectedOptions)
             ? {
                 ...item,
                 quantity: Math.min(10, item.quantity + delta),
@@ -338,6 +319,7 @@ export default function Storefront() {
 
           <div className="header-actions">
             <AuthStatus />
+            <Link href="/my-orders" className="header-action" aria-label="My orders">My Orders</Link>
 
             <button
               className="header-action"
@@ -677,11 +659,12 @@ export default function Storefront() {
 
                     <div className="cart-line-main">
                       <strong>{item.product.name}</strong>
+                      {Object.keys(item.selectedOptions || {}).length > 0 && <small>{Object.entries(item.selectedOptions || {}).map(([key, value]) => `${key}: ${value}`).join(" · ")}</small>}
                       <small>{money(item.product.price)}</small>
 
                       <div className="qty">
                         <button
-                          onClick={() => adjust(item.product.id, -1)}
+                          onClick={() => adjust(item.product.id, -1, item.selectedOptions)}
                           aria-label="Decrease quantity"
                         >
                           <Minus size={13} />
@@ -690,7 +673,7 @@ export default function Storefront() {
                         <span>{item.quantity}</span>
 
                         <button
-                          onClick={() => adjust(item.product.id, 1)}
+                          onClick={() => adjust(item.product.id, 1, item.selectedOptions)}
                           aria-label="Increase quantity"
                           disabled={item.quantity >= 10}
                         >
@@ -716,20 +699,12 @@ export default function Storefront() {
                     </strong>
                   </div>
 
-                  <button
-                    className="checkout"
-                    onClick={() =>
-                      alert(
-                        "Checkout is the next build phase. Payment must be confirmed server-side before production orders are accepted."
-                      )
-                    }
-                  >
+                  <Link className="checkout" href="/checkout" onClick={() => setCartOpen(false)}>
                     Continue to Checkout
-                  </button>
+                  </Link>
 
                   <p className="notice">
-                    Your final payable amount will be calculated securely
-                    by the server. This demo cart does not collect payment yet.
+                    Final prices, stock and order totals are verified securely by the server.
                   </p>
                 </div>
               </>
@@ -750,7 +725,7 @@ function ProductCard({
 }) {
   return (
     <article className="product">
-      <div className="product-image">
+      <Link className="product-image product-image-link" href={`/products/${product.id}`} aria-label={`View ${product.name}`}>
         {product.image ? (
           <img
             src={product.image}
@@ -761,10 +736,10 @@ function ProductCard({
           <div className="empty">Image coming soon</div>
         )}
         <span className="discount">{product.badge}</span>
-      </div>
+      </Link>
 
       <div className="product-info">
-        <h3>{product.name}</h3>
+        <h3><Link className="product-title-link" href={`/products/${product.id}`}>{product.name}</Link></h3>
 
         <div className="price-row">
           <span className="price">{money(product.price)}</span>

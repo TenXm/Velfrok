@@ -102,17 +102,36 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      const emailToCheck = email.trim().toLowerCase();
+      const validationResponse = await fetch("/api/auth/check-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: emailToCheck }),
+        cache: "no-store",
+      });
+      const validation = await validationResponse.json();
+
+      if (!validationResponse.ok || validation.valid !== true) {
+        setMessage(
+          validation.error ||
+            "We could not validate this email address. Please try again."
+        );
+        return;
+      }
+
       const supabase = supabaseBrowser();
 
       const { error } = await supabase.auth.signInWithOtp({
         email: email.trim(),
+        // New email addresses can create a customer account through this verified OTP flow.
+        options: { shouldCreateUser: true },
       });
 
       if (error) {
         setMessage(error.message);
       } else {
         setOtpSent(true);
-        setMessage("A verification code has been requested. Check your email.");
+        setMessage("Verification code sent. Check your email, then enter the 6-digit code below.");
       }
     } catch {
       setMessage("Unable to send the code. Please try again.");
@@ -189,15 +208,19 @@ export default function LoginPage() {
         </a>
 
         <h1 style={{ marginTop: 24, marginBottom: 8 }}>
-          Welcome back
+          Sign in or create your account
         </h1>
 
         <p style={{ color: "#666", lineHeight: 1.6 }}>
           {otpSent
             ? "Enter the 6-digit verification code sent to your email."
-            : "Enter your email and we'll send you a verification code."}
+            : "Enter your email and we'll send you a one-time verification code. New customers can create an account here too."}
         </p>
 
+
+        <p style={{ color: "#426653", fontSize: 13, lineHeight: 1.6, marginTop: 12 }}>
+          New to Velfrok? Your customer account will be created automatically after you verify your email.
+        </p>
         {!otpSent ? (
           <form onSubmit={sendOtp}>
             <label
