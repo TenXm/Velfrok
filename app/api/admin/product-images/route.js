@@ -37,6 +37,16 @@ export async function POST(req) {
         console.error("Product image bucket setup failed:", createError.message);
         return fail("Could not prepare product image storage.", 500);
       }
+    } else if (!bucket.public) {
+      const { error: updateError } = await db.storage.updateBucket(BUCKET, {
+        public: true,
+        fileSizeLimit: MAX_FILE_SIZE,
+        allowedMimeTypes: [...ALLOWED],
+      });
+      if (updateError) {
+        console.error("Product image bucket configuration failed:", updateError.message);
+        return fail("The product-images bucket must allow public reads before uploading storefront images.", 500);
+      }
     }
 
     const uploaded = [];
