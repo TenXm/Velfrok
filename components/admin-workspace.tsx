@@ -113,7 +113,7 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
   });
   const [newAttributeName, setNewAttributeName] = useState("");
   const [customAttributeNames, setCustomAttributeNames] = useState<string[]>([]);
-  const [couponForm, setCouponForm] = useState({ code: "", discount_type: "percentage", discount_value: "", min_order_value: "0", max_discount: "", expires_at: "", usage_limit: "", per_customer_limit: "" });
+  const [couponForm, setCouponForm] = useState({ code: "", discount_type: "percentage", discount_value: "", min_order_value: "0", max_discount: "", expires_at: "", usage_limit: "", per_customer_limit: "", is_active: true });
   const [editingCouponId, setEditingCouponId] = useState<string | null>(null);
 
   const api = useCallback(async (path: string, init: RequestInit = {}) => {
@@ -315,6 +315,7 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
       expires_at: coupon.expires_at ? new Date(coupon.expires_at).toISOString().slice(0,16) : "",
       usage_limit: coupon.usage_limit == null ? "" : String(coupon.usage_limit),
       per_customer_limit: coupon.per_customer_limit == null ? "" : String(coupon.per_customer_limit),
+      is_active: coupon.is_active !== false,
     });
     setTab("coupons");
     window.scrollTo({ top: 0, behavior: "smooth" });
