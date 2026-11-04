@@ -66,8 +66,7 @@ export default function AdminOrdersPage() {
     setError(""); setMessage("");
     let succeeded = 0;
     for (const id of selected) {
-      try { await update(id, { paymentStatus: status }); succeeded += 1; }
-      catch { /* Individual failure is shown by update; continue other selected orders. */ }
+      if (await update(id, { paymentStatus: status })) succeeded += 1;
     }
     setSelected([]);
     setMessage(`Processed ${succeeded} of the selected orders. Refresh the list to confirm each result.`);
