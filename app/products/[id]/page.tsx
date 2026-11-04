@@ -64,7 +64,7 @@ export default function ProductDetailPage() {
 
   const images = product?.images.length ? product.images : product?.image ? [product.image] : [];
   const attributeEntries = useMemo(() => Object.entries(product?.attributes || {})
-    .filter(([key, values]) => values.length && !["highlights", "bullet-points", "benefits"].includes(key)), [product]);
+    .filter(([key, values]) => values.length && !["highlights", "bullet-points", "benefits"].includes(key) && !(product?.colours.length && ["colour", "color"].includes(key))), [product]);
   const requiredKeys = useMemo(() => [
     ...(product?.colours.length ? ["colour"] : []),
     ...attributeEntries.filter(([key]) => ["size", "sizes", "colour", "color"].includes(key)).map(([key]) => key),
