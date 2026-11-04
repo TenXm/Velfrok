@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { requireAdmin } from "@/lib/auth";
+import { supabaseAdmin } from "@/lib/supabase";
 import { rateLimit } from "@/lib/rate-limit";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
@@ -171,7 +172,7 @@ export async function POST(req) {
     }
     if (!["zip", "combined"].includes(format)) return Response.json({ error: "Choose ZIP or combined PDF." }, { status: 400 });
 
-    const { data: orders, error: dbError } = await (await import("@/lib/supabase")).supabaseAdmin()
+    const { data: orders, error: dbError } = await supabaseAdmin()
       .from("orders").select("*, order_items(*)").in("id", ids);
     if (dbError) {
       console.error("Admin invoice order lookup failed:", dbError.message);
