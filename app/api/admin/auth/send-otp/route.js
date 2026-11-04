@@ -1,4 +1,4 @@
-import { createHmac, randomInt } from "node:crypto";
+import { createHmac, randomInt, randomUUID } from "node:crypto";
 import { supabaseAdmin } from "@/lib/supabase";
 import { requireUser } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
@@ -75,11 +75,13 @@ export async function POST(req) {
     const { data: challenge, error: insertError } = await db
       .from("admin_email_otp_challenges")
       .insert({
+        id: randomUUID(),
         user_id: user.id,
         session_id: sessionId,
         otp_hash: hashOtp(code),
         expires_at: new Date(now + 10 * 60 * 1000).toISOString(),
         attempts: 0,
+        created_at: new Date(now).toISOString(),
       })
       .select("id")
       .single();
