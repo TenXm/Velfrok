@@ -56,9 +56,10 @@ begin
     raise exception 'Admin MFA authorization required';
   end if;
 
-  if jsonb_typeof(p_items) <> 'array'
-     or jsonb_array_length(p_items) = 0
-     or jsonb_array_length(p_items) > 200 then
+  if p_items is null or jsonb_typeof(p_items) <> 'array' then
+    raise exception 'Inventory changes must be a JSON array';
+  end if;
+  if jsonb_array_length(p_items) = 0 or jsonb_array_length(p_items) > 200 then
     raise exception 'Provide between 1 and 200 inventory changes';
   end if;
 
