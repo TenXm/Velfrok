@@ -65,7 +65,11 @@ export async function POST(req) {
       const { data, error } = await db.from("categories")
         .insert({ name, slug }).select("*").single();
       if (error) {
-        if (error.code === "23505") return fail("A category with this name already exists.", 409);
+        if (error.code === "23505") {
+          const { data: existing } = await db.from("categories").select("*").eq("slug", slug).maybeSingle();
+          if (existing) return Response.json({ category: existing, existing: true });
+          return fail("A category with this name already exists.", 409);
+        }
         console.error("Category create failed:", error.message);
         return fail("Could not create category.", 500);
       }
