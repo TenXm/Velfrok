@@ -7,8 +7,11 @@ import { supabaseBrowser } from "@/lib/supabase";
 type Order = {
   id: string;
   created_at?: string;
-  status?: string;
+  fulfillment_status?: string;
   payment_status?: string;
+  order_number?: string;
+  total?: number;
+  customer_name?: string;
 };
 
 type Step =
@@ -265,13 +268,13 @@ export default function AdminPage() {
 
   const total = orders.length;
   const pending = orders.filter(
-    (order) => order.payment_status === "pending"
+    (order) => ["pending_utr", "pending_verification"].includes(order.payment_status || "")
   ).length;
   const paid = orders.filter(
-    (order) => order.payment_status === "paid"
+    (order) => order.payment_status === "accepted"
   ).length;
   const active = orders.filter((order) =>
-    ["placed", "packed", "dispatched"].includes(order.status || "")
+    ["confirmed", "packed", "shipped"].includes(order.fulfillment_status || "")
   ).length;
 
   const styles = `
@@ -587,10 +590,10 @@ export default function AdminPage() {
                 orders.slice(0, 20).map((order) => (
                   <div className="order" key={order.id}>
                     <strong>
-                      Order #{order.id.slice(0, 8).toUpperCase()}
+                      {order.order_number || `Order #${order.id.slice(0, 8).toUpperCase()}`}
                     </strong>
                     <span className="muted">
-                      {order.status || "Unknown"} /{" "}
+                      {order.fulfillment_status || "Unknown"} /{" "}
                       {order.payment_status || "Unknown"}
                     </span>
                   </div>
