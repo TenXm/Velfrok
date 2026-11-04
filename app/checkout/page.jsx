@@ -60,6 +60,18 @@ export default function CheckoutPage() {
     setMessage("");
     if (!token) { setError("অর্ডার করতে আগে আপনার অ্যাকাউন্টে সাইন ইন করুন।"); return; }
     if (!items.length) { setError("আপনার কার্ট খালি।"); return; }
+    if (!form.name.trim() || !form.phone || !form.line1.trim() || !form.city.trim() || !form.state.trim() || !form.pincode) {
+      setError("সবগুলো ডেলিভারি তথ্য পূরণ করুন। কোনো ঘর খালি রাখা যাবে না.");
+      return;
+    }
+    if (!/^[0-9]{10}$/.test(form.phone)) {
+      setError("মোবাইল নম্বর অবশ্যই ঠিক ১০টি সংখ্যা হতে হবে। ৯ বা ১১/তার বেশি সংখ্যা গ্রহণযোগ্য নয়।");
+      return;
+    }
+    if (!/^[0-9]{6}$/.test(form.pincode)) {
+      setError("PIN code অবশ্যই ঠিক ৬টি সংখ্যা হতে হবে।");
+      return;
+    }
     setBusy(true);
     try {
       const response = await fetch("/api/orders", {
@@ -156,7 +168,7 @@ export default function CheckoutPage() {
                     </label>
                     <label className="checkout-field checkout-field-full">
                       <span>Mobile number</span>
-                      <div className="checkout-phone-wrap"><b>+91</b><input autoComplete="tel-national" type="tel" inputMode="numeric" required maxLength={10} minLength={10} placeholder="10-digit mobile number" value={form.phone} onChange={(e) => update("phone", e.target.value.replace(/\D/g, "").slice(0, 10))} /></div>
+                      <div className="checkout-phone-wrap"><b>+91</b><input autoComplete="tel-national" type="tel" inputMode="numeric" required maxLength={15} minLength={10} pattern="[0-9]{10}" title="Enter exactly 10 digits, without country code or spaces." placeholder="10-digit mobile number" value={form.phone} onChange={(e) => update("phone", e.target.value.replace(/\D/g, ""))} /></div>
                     </label>
                     <label className="checkout-field checkout-field-full">
                       <span>Street address</span>
