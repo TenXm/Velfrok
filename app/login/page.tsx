@@ -15,7 +15,7 @@ function safeNextPath(value: string | null) {
     return "/";
   }
 
-  return value;
+  return value.split("?")[0].startsWith("/admin") ? "/" : value;
 }
 
 export default function LoginPage() {
