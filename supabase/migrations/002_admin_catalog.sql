@@ -11,6 +11,7 @@ create table if not exists public.product_attribute_options (
   attribute_slug text not null,
   value text not null,
   normalized_value text not null,
+  is_active boolean not null default true,
   created_at timestamptz not null default now(),
   constraint product_attribute_options_unique
     unique (attribute_slug, normalized_value),
