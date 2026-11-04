@@ -2,10 +2,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { UserRound } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabase";
 
 export default function AuthStatus() {
+  const pathname = usePathname();
   const [loggedIn, setLoggedIn] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -41,7 +43,7 @@ export default function AuthStatus() {
     if (busy || loading) return;
 
     if (!loggedIn) {
-      window.location.assign("/login");
+      window.location.assign(`/login?next=${encodeURIComponent(pathname || "/")}`);
       return;
     }
 
