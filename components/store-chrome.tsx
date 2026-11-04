@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { Search, ShoppingCart, Heart, Menu, Leaf, Monitor, Shirt, House, FlaskConical, Puzzle, CookingPot, Sprout, Droplet } from "lucide-react";
 import AuthStatus from "@/components/auth-status";
+import { storeConfig } from "@/lib/store-config";
 
 const categories = [
   { name: "Electronics", icon: Monitor }, { name: "Fashion", icon: Shirt },
@@ -15,7 +16,7 @@ const categories = [
 export function StoreHeader() {
   const [query, setQuery] = useState("");
   return <>
-    <div className="promo">✦ Free Shipping on Orders Over ₹999 <span>|</span> ◉ 30-Day Easy Returns <span>|</span> ♙ Secure Payments</div>
+    <div className="promo">✦ Free Shipping on Orders Over ₹{storeConfig.freeShippingAbove} <span>|</span> ◉ 30-Day Easy Returns <span>|</span> ♙ Secure Payments</div>
     <div className="site">
       <header className="header">
         <Link className="brand" href="/" aria-label="Velfrok home"><span className="brand-mark"><Leaf size={25}/></span><span><span className="brand-name">Velfrok</span><span className="brand-sub">BETTER LIVING.</span></span></Link>
@@ -37,8 +38,8 @@ export function StoreFooter() {
   return <footer id="footer" className="footer"><div className="site"><div className="footer-grid">
     <div><Link className="brand" href="/" style={{color:"#fff"}}><span className="brand-mark"><Leaf size={24}/></span><span><span className="brand-name">Velfrok</span><span className="brand-sub">BETTER LIVING.</span></span></Link><p>Useful everyday essentials for better living.</p><p>Live better with Velfrok.</p></div>
     <div><h4>Shop</h4><Link href="/#categories">All Categories</Link><Link href="/#products">New Arrivals</Link><Link href="/#products">Deals</Link><Link href="/#collections">Collections</Link></div>
-    <div><h4>Customer Service</h4><Link href="/#footer">Track Order</Link><Link href="/#footer">Returns & Refunds</Link><Link href="/#footer">Shipping Info</Link><Link href="/#footer">FAQ</Link><a href="mailto:support@velfrok.com">Contact Us</a></div>
+    <div><h4>Customer Service</h4><Link href="/#footer">Track Order</Link><Link href="/#footer">Returns & Refunds</Link><Link href="/#footer">Shipping Info</Link><Link href="/#footer">FAQ</Link><a href={`mailto:${storeConfig.contactEmail}`}>Contact Us</a></div>
     <div><h4>Company</h4><Link href="/#footer">About Us</Link><Link href="/#footer">Privacy Policy</Link><Link href="/#footer">Terms of Service</Link></div>
-    <div><h4>Store Details</h4><p>India</p><p>UPI and Cash on Delivery</p></div>
+    <div><h4>Store Details</h4><p>{storeConfig.address}</p><p>{storeConfig.contactEmail}</p><p>{storeConfig.contactPhone}</p><p>UPI: {storeConfig.upiId}</p></div>
   </div><div className="footer-bottom"><span>© 2026 Velfrok. All rights reserved.</span><span>Better living. Useful everyday essentials.</span></div></div></footer>;
 }
