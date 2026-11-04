@@ -80,7 +80,7 @@ begin
   end if;
 
   if p_email is null or length(btrim(p_email)) > 254
-     or p_email !~* '^[^[:space:]@]+@[^[:space:]@]+\\.[^[:space:]@]+$' then
+     or p_email !~* '^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$' then
     raise exception 'Invalid email address';
   end if;
 
