@@ -275,7 +275,7 @@ export default function CheckoutPage() {
                   <div className="checkout-summary-heading"><h2>Your order</h2><span>{totalQuantity} {totalQuantity === 1 ? "item" : "items"}</span></div>
                   <div className="checkout-summary-items">
                     {items.map((item) => (
-                      <div className="checkout-summary-item" key={item.productId}>
+                      <div className="checkout-summary-item" key={`${item.productId}:${JSON.stringify(item.options || {})}`}>
                         <div className="checkout-item-thumb">
                           {item.image ? <img src={item.image} alt="" loading="lazy" /> : <span>V</span>}
                           <i>{item.quantity}</i>
