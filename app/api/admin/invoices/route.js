@@ -109,7 +109,9 @@ async function makeInvoice(order, settings) {
     const isLast = pageIndex === chunks.length - 1;
 
     page.drawRectangle({ x: 0, y: PAGE.height - 132, width: PAGE.width, height: 132, color: pale });
-    page.drawText(text(settings.business_name || "Velfrok").slice(0, 32), { x: left, y: PAGE.height - 58, size: 20, font: bold, color: green });\n    const contactLines = [settings.phone, settings.email, settings.address, settings.gst_number ? "GSTIN: " + settings.gst_number : ""].filter(Boolean);\n    contactLines.slice(0, 4).forEach((value, index) => page.drawText(text(value).slice(0, 95), { x: left, y: PAGE.height - 74 - index * 11, size: 7, font, color: muted }));
+    page.drawText(text(settings.business_name || "Velfrok").slice(0, 32), { x: left, y: PAGE.height - 58, size: 20, font: bold, color: green });
+    const contactLines = [settings.phone, settings.email, settings.address, settings.gst_number ? "GSTIN: " + settings.gst_number : ""].filter(Boolean);
+    contactLines.slice(0, 4).forEach((value, index) => page.drawText(text(value).slice(0, 95), { x: left, y: PAGE.height - 74 - index * 11, size: 7, font, color: muted }));
     page.drawText("INVOICE", { x: right - 105, y: PAGE.height - 52, size: 17, font: bold, color: green });
     page.drawText("Order " + orderNo, { x: right - 170, y: PAGE.height - 75, size: 9, font, color: ink });
     page.drawText("Invoice date: " + date(order.created_at), { x: left, y: PAGE.height - 91, size: 9, font, color: muted });
@@ -207,7 +209,9 @@ export async function POST(req) {
     }
     if (!orders || orders.length !== ids.length) return Response.json({ error: "One or more selected orders could not be found." }, { status: 404 });
 
-    const { data: invoiceSettings } = await supabaseAdmin().from("invoice_settings").select("*").eq("id", 1).maybeSingle();\n    const settings = invoiceSettings || { business_name: "Velfrok", phone: "", email: "", address: "", gst_number: "", terms: "" };\n    const orderById = new Map(orders.map(order => [order.id, order]));
+    const { data: invoiceSettings } = await supabaseAdmin().from("invoice_settings").select("*").eq("id", 1).maybeSingle();
+    const settings = invoiceSettings || { business_name: "Velfrok", phone: "", email: "", address: "", gst_number: "", terms: "" };
+    const orderById = new Map(orders.map(order => [order.id, order]));
     const ordered = ids.map(id => orderById.get(id)).filter(Boolean);
     const pdfs = [];
     for (const order of ordered) pdfs.push({ order, bytes: await makeInvoice(order, settings) });
