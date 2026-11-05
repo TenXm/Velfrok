@@ -54,6 +54,9 @@ export default function PaymentPage({ params }) {
 
         setOrder(result);
         setError("");
+        if (result.paymentStatus === "accepted") {
+          localStorage.removeItem("velfrok-cart-v1");
+        }
 
         if (
           result.paymentStatus === "accepted" ||
@@ -156,38 +159,35 @@ export default function PaymentPage({ params }) {
   }
 
   return (
-    <main className="pay">
-      <h1>Velfrok Payment</h1>
+    <main className="pay pay-container">
+      <header className="pay-header"><p className="pay-eyebrow">VELFROK • SECURE CHECKOUT</p><h1>Complete your payment</h1><p>Review your order and pay securely using your UPI app.</p></header>
 
-      {!order && !error && <p>Loading order details...</p>}
+      {!order && !error && <p className="pay-state">Loading your order details…</p>}
 
       {order && (
         <>
-          <p>
-            Order: <strong>{order.orderNumber}</strong>
-          </p>
+          <p className="pay-order-number">Order <strong>{order.orderNumber}</strong></p>
 
-          <h2>Amount: ₹{Number(order.amount).toFixed(2)}</h2>
+          <section className="pay-card"><p className="pay-label">TOTAL TO PAY</p><h2 className="pay-amount">₹{Number(order.amount).toFixed(2)}</h2>
 
           {order.paymentStatus === "pending_utr" && (
             <>
-              <p>Complete your UPI payment using the details below.</p>
+              <p className="pay-instructions">Complete your UPI payment using the details below.</p>
 
               {upiLink && (
                 <>
-                  <a href={upiLink}>
+                  <a className="pay-app-link" href={upiLink}>
                     <button type="button">Pay with UPI app</button>
                   </a>
 
-                  <p>
-                    UPI ID: <strong>{UPI_ID}</strong>
-                  </p>
+                  <p className="pay-upi-id">UPI ID <strong>{UPI_ID}</strong></p>
 
                   <img
                     src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(
                       upiLink
                     )}`}
                     alt="UPI payment QR code"
+                    className="pay-qr"
                     width={220}
                     height={220}
                   />
@@ -195,13 +195,14 @@ export default function PaymentPage({ params }) {
               )}
 
               {!UPI_ID && (
-                <p>UPI payment details are not configured yet.</p>
+                <div className="pay-config-warning" role="status"><strong>UPI setup is not complete yet</strong><span>The store owner needs to add the Velfrok UPI ID and display name before customers can pay. Do not transfer money until these details appear here.</span></div>
               )}
 
-              <form onSubmit={submitUtr}>
-                <label htmlFor="utr">12-digit UTR number</label>
+              {UPI_ID && <form className="pay-form" onSubmit={submitUtr}>
+                <label htmlFor="utr">12-digit UTR / transaction reference</label>
                 <input
                   id="utr"
+                  className="pay-input"
                   inputMode="numeric"
                   maxLength={12}
                   value={utr}
@@ -219,38 +220,36 @@ export default function PaymentPage({ params }) {
                   onError={() => setCaptcha("")}
                 />
 
-                <button type="submit" disabled={busy || !captcha}>
+                <button className="pay-submit" type="submit" disabled={busy || !captcha}>
                   {busy ? "Submitting..." : "Submit UTR"}
                 </button>
-              </form>
+              </form>}
 
-              <p>
-                You can submit your UTR later. Your payment is not confirmed
-                until Velfrok verifies it.
-              </p>
+              {UPI_ID && <p className="pay-footnote">You can submit your UTR later. Your payment is not confirmed until Velfrok verifies it.</p>}
             </>
           )}
 
           {order.paymentStatus === "pending_verification" && (
-            <p>UTR received. Your payment is waiting for verification.</p>
+            <p className="pay-status">UTR received. Your payment is waiting for verification.</p>
           )}
 
           {order.paymentStatus === "accepted" && (
-            <p className="ok">
+            <p className="pay-status ok">
               Payment verified. Your order is confirmed.
             </p>
           )}
 
           {order.paymentStatus === "rejected" && (
-            <p className="err">
+            <p className="pay-status err">
               Payment was rejected. Please contact Velfrok support.
             </p>
           )}
+        </section>
         </>
       )}
 
-      {message && <p className="ok">{message}</p>}
-      {error && <p className="err" role="alert">{error}</p>}
+      {message && <p className="pay-status ok">{message}</p>}
+      {error && <p className="pay-status err" role="alert">{error}</p>}
     </main>
   );
 }
