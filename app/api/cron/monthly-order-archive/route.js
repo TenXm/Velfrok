@@ -58,6 +58,12 @@ export async function GET(req) {
   const window = istMonthWindow(new Date());
 
   const db = supabaseAdmin();
+  const rejectedCutoff = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString();
+  const { data: purgedRejectedOrders, error: purgeError } = await db.rpc("purge_rejected_orders_before", {
+    p_cutoff: rejectedCutoff,
+    p_limit: 500,
+  });
+  if (purgeError) return Response.json({ error: "Rejected-order retention cleanup failed. Apply migration 017.", details: purgeError.message }, { status: 500 });
   const { data: existingArchive, error: existingError } = await db.from("order_archives").select("id,file_name").eq("period_start", window.periodStart).maybeSingle();
   if (existingError) return Response.json({ error: "Archive table is unavailable. Apply migration 017." }, { status: 500 });
   if (existingArchive) {
@@ -65,7 +71,7 @@ export async function GET(req) {
       .eq("fulfillment_status", "delivered").gte("delivered_at", window.start).lt("delivered_at", window.end)
       .is("archived_at", null);
     if (retryMarkError) return Response.json({ error: "Archive file exists, but source orders could not be marked archived." }, { status: 500 });
-    return Response.json({ ok: true, alreadyArchived: true, archive: existingArchive });
+    return Response.json({ ok: true, alreadyArchived: true, archive: existingArchive, purgedRejectedOrders: purgedRejectedOrders || 0 });
   }
   const { data: orders, error: orderError } = await db.from("orders").select("*,order_items(*)")
     .eq("fulfillment_status", "delivered").gte("delivered_at", window.start).lt("delivered_at", window.end)
@@ -101,5 +107,5 @@ export async function GET(req) {
       .is("archived_at", null);
     if (markError) return Response.json({ error: "Excel was created, but source orders could not be marked archived. Keep the archive and retry after checking orders.", archive }, { status: 500 });
   }
-  return Response.json({ ok: true, archive, orderCount: (orders || []).length, itemCount: rows.length });
+  return Response.json({ ok: true, archive, orderCount: (orders || []).length, itemCount: rows.length, purgedRejectedOrders: purgedRejectedOrders || 0 });
 }
