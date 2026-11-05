@@ -42,8 +42,6 @@ function istMonthWindow(now) {
   const ist = new Date(now.getTime() + IST_OFFSET_MINUTES * 60_000);
   const year = ist.getUTCFullYear();
   const month = ist.getUTCMonth();
-  const day = ist.getUTCDate();
-  if (day !== 1) return null;
   const start = new Date(Date.UTC(year, month - 1, 1) - IST_OFFSET_MINUTES * 60_000);
   const end = new Date(Date.UTC(year, month, 1) - IST_OFFSET_MINUTES * 60_000);
   const periodYear = month === 0 ? year - 1 : year;
@@ -58,11 +56,17 @@ export async function GET(req) {
   const secret = process.env.CRON_SECRET;
   if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) return Response.json({ error: "Unauthorized." }, { status: 401 });
   const window = istMonthWindow(new Date());
-  if (!window) return Response.json({ ok: true, skipped: true, reason: "Not the first day in Asia/Kolkata." });
+
   const db = supabaseAdmin();
   const { data: existingArchive, error: existingError } = await db.from("order_archives").select("id,file_name").eq("period_start", window.periodStart).maybeSingle();
   if (existingError) return Response.json({ error: "Archive table is unavailable. Apply migration 017." }, { status: 500 });
-  if (existingArchive) return Response.json({ ok: true, alreadyArchived: true, archive: existingArchive });
+  if (existingArchive) {
+    const { error: retryMarkError } = await db.from("orders").update({ archived_at: new Date().toISOString() })
+      .eq("fulfillment_status", "delivered").gte("delivered_at", window.start).lt("delivered_at", window.end)
+      .is("archived_at", null);
+    if (retryMarkError) return Response.json({ error: "Archive file exists, but source orders could not be marked archived." }, { status: 500 });
+    return Response.json({ ok: true, alreadyArchived: true, archive: existingArchive });
+  }
   const { data: orders, error: orderError } = await db.from("orders").select("*,order_items(*)")
     .eq("fulfillment_status", "delivered").gte("delivered_at", window.start).lt("delivered_at", window.end)
     .is("archived_at", null).order("delivered_at", { ascending: true }).limit(10000);
