@@ -27,6 +27,8 @@ async function downloadCsv(rows: AnyRow[]) {
 function AwbCameraScanner({ onScan, onClose }: { onScan: (value: string) => void; onClose: () => void }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [scannerError, setScannerError] = useState("");
+  const onScanRef = useRef(onScan);
+  useEffect(() => { onScanRef.current = onScan; }, [onScan]);
   useEffect(() => {
     let active = true;
     let stream: MediaStream | null = null;
@@ -46,7 +48,7 @@ function AwbCameraScanner({ onScan, onClose }: { onScan: (value: string) => void
           try {
             const codes = await detector.detect(videoRef.current);
             const value = codes?.find((code: any) => code.rawValue)?.rawValue;
-            if (value) { onScan(String(value).trim()); return; }
+            if (value) { onScanRef.current(String(value).trim()); return; }
           } catch { /* Keep scanning while the camera is active. */ }
           frame = requestAnimationFrame(scan);
         };
@@ -61,7 +63,7 @@ function AwbCameraScanner({ onScan, onClose }: { onScan: (value: string) => void
       cancelAnimationFrame(frame);
       stream?.getTracks().forEach(track => track.stop());
     };
-  }, [onScan]);
+  }, []);
   return <div role="dialog" aria-modal="true" aria-label="Scan AWB barcode" style={{position:"fixed",inset:0,zIndex:1000,background:"rgba(0,0,0,.78)",display:"grid",placeItems:"center",padding:16}}>
     <div style={{background:"white",color:"#111",padding:16,borderRadius:12,width:"min(100%,480px)"}}>
       <div className="section-head"><h3>Scan AWB / Barcode</h3><button className="secondary" onClick={onClose}>Close</button></div>
