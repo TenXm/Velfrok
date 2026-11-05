@@ -90,11 +90,12 @@ export async function PATCH(req) {
     if (typeof fulfillmentStatus !== "string" || !Object.prototype.hasOwnProperty.call(NEXT_STATUS, fulfillmentStatus)) return fail("Invalid fulfillment status.", 400);
     const db = supabaseAdmin();
     const { data: existing, error: lookupError } = await db.from("orders")
-      .select("id,payment_method,payment_status,order_acceptance_status,fulfillment_status").eq("id", id).maybeSingle();
+      .select("id,payment_method,payment_status,order_acceptance_status,fulfillment_status,delivery_partner,awb_number").eq("id", id).maybeSingle();
     if (lookupError) { console.error("Order lookup failed:", lookupError.message); return fail("Could not verify order.", 500); }
     if (!existing) return fail("Order not found.", 404);
     if (existing.fulfillment_status === fulfillmentStatus) return Response.json({ ok: true, fulfillmentStatus, unchanged: true });
     if (existing.order_acceptance_status !== "accepted") return fail("Order must be accepted before fulfillment can change.", 409);
+    if (fulfillmentStatus === "shipped" && (!existing.delivery_partner || !existing.awb_number)) return fail("Assign a delivery partner and save the AWB number before dispatching this order.", 409);
     if (existing.payment_method === "upi" && existing.payment_status !== "accepted") return fail("UPI payment must be verified before fulfillment can change.", 409);
     if (existing.payment_method === "cod" && !["due_on_delivery","accepted"].includes(existing.payment_status)) return fail("COD payment state is invalid.", 409);
     if (NEXT_STATUS[existing.fulfillment_status] !== fulfillmentStatus) return fail("Invalid fulfillment transition. Advance one stage at a time.", 409);
