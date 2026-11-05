@@ -157,6 +157,7 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
   const [selectedOrderDate, setSelectedOrderDate] = useState("");
   const [orderStatusFilters, setOrderStatusFilters] = useState<string[]>([]);
   const [calendarMonth, setCalendarMonth] = useState(() => new Date());
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [deliveryEdits, setDeliveryEdits] = useState<Record<string, { partner: string; awb: string; trackingUrl: string }>>({});
   const [scannerOrderId, setScannerOrderId] = useState<string | null>(null);
   const [stockFilter, setStockFilter] = useState("all");
@@ -562,38 +563,24 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
 
     {tab === "orders" && <div className="admin-card">
       <div className="section-head"><h2>Order management</h2><div className="inline-actions"><input style={{width:220}} value={orderSearch} onChange={e => setOrderSearch(e.target.value)} placeholder="Search order / customer"/><button className="secondary" onClick={() => downloadCsv(filteredOrders)}>Export CSV</button></div></div>
-      <div className="admin-card" style={{marginBottom:14}}>
-        <div className="section-head" style={{flexWrap:"wrap",gap:10}}><h3>📅 Order calendar</h3><div className="inline-actions" style={{flexWrap:"wrap"}}><details style={{position:"relative"}}><summary className="secondary" style={{cursor:"pointer",listStyle:"none",padding:"8px 12px",border:"1px solid #d1d5db",borderRadius:8,whiteSpace:"nowrap"}}>{({all:"All Orders",accepted:"Accepted Order",rejected:"Rejected Order",delivered:"Delivered Order",pending:"Pending Order"} as Record<string,string>)[orderStatusFilters[0] || "all"]} ▾</summary><div style={{position:"absolute",right:0,top:"calc(100% + 6px)",zIndex:20,minWidth:190,padding:8,background:"white",color:"#111",border:"1px solid #ddd",borderRadius:10,boxShadow:"0 8px 24px rgba(0,0,0,.14)"}}>{[["all","All Orders"],["accepted","Accepted Order"],["rejected","Rejected Order"],["delivered","Delivered Order"],["pending","Pending Order"]].map(([value,label])=><button key={value} type="button" className="secondary" style={{display:"block",width:"100%",textAlign:"left",margin:"3px 0",background:(orderStatusFilters[0] || "all")===value?"#eee9ff":undefined,borderColor:(orderStatusFilters[0] || "all")===value?"#8466df":undefined}} onClick={event=>{setOrderStatusFilters(value==="all"?[]:[value]); const details=event.currentTarget.closest("details"); if(details) details.open=false;}}>{label}</button>)}</div></details><button className="secondary" onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(),calendarMonth.getMonth()-1,1))}>‹</button><strong>{calendarMonth.toLocaleDateString("en-IN",{month:"long",year:"numeric"})}</strong><button className="secondary" onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(),calendarMonth.getMonth()+1,1))}>›</button></div></div>
+      <div className="inline-actions" style={{margin:"12px 0",justifyContent:"flex-start",gap:10,flexWrap:"wrap"}}>
+        <label style={{margin:0,fontWeight:600}}>Filter orders</label>
+        <select aria-label="Filter orders by status" style={{maxWidth:210}} value={orderStatusFilters[0] || "all"} onChange={e => setOrderStatusFilters(e.target.value === "all" ? [] : [e.target.value])}>
+          <option value="all">All Orders</option><option value="accepted">Accepted Order</option><option value="rejected">Rejected Order</option><option value="delivered">Delivered Order</option><option value="pending">Pending Order</option>
+        </select>
+        <button type="button" className="secondary" aria-expanded={calendarOpen} aria-label={calendarOpen ? "Close order calendar" : "Open order calendar"} onClick={() => setCalendarOpen(open => !open)} style={{minWidth:44}}>{calendarOpen ? "✕" : "📅"}</button>
+        {selectedOrderDate && <span className="muted-text">Date: {new Date(selectedOrderDate+"T00:00:00").toLocaleDateString("en-IN")}</span>}
+      </div>
+      {calendarOpen && <div className="admin-card" style={{marginBottom:14}}>
+        <div className="section-head" style={{flexWrap:"wrap",gap:10}}><h3>Order calendar</h3><div className="inline-actions" style={{flexWrap:"wrap"}}><button className="secondary" onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(),calendarMonth.getMonth()-1,1))}>‹</button><strong>{calendarMonth.toLocaleDateString("en-IN",{month:"long",year:"numeric"})}</strong><button className="secondary" onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(),calendarMonth.getMonth()+1,1))}>›</button></div></div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(7,minmax(0,1fr))",gap:5,textAlign:"center"}}>
           {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(day => <small key={day} className="muted-text" style={{padding:5}}>{day}</small>)}
-          {calendarDays.map(date => {
-            const key = calendarDateKey(date);
-            const counts = calendarCounts[key] || {orders:0,dispatched:0,delivered:0,rejected:0};
-            const inMonth = date.getMonth() === calendarMonth.getMonth();
-            const selected = selectedOrderDate === key;
-            return <button key={key} type="button" className="secondary" onClick={() => setSelectedOrderDate(key)} style={{minWidth:0,minHeight:54,padding:"5px 2px",opacity:inMonth?1:.38,border:selected?"2px solid #6b55c5":undefined,background:selected?"#eee9ff":undefined,color:selected?"#33206f":undefined}}>
-              <strong>{date.getDate()}</strong>
-              {counts.orders+counts.dispatched+counts.delivered+counts.rejected>0 && <div style={{fontSize:10,lineHeight:1.3,marginTop:2}}>
-                {counts.orders>0 && <span title="Orders">●{counts.orders} </span>}
-                {counts.dispatched>0 && <span title="Dispatched" style={{color:"#2563eb"}}>●{counts.dispatched} </span>}
-                {counts.delivered>0 && <span title="Delivered" style={{color:"#15803d"}}>●{counts.delivered} </span>}
-                {counts.rejected>0 && <span title="Rejected" style={{color:"#dc2626"}}>●{counts.rejected}</span>}
-              </div>}
-            </button>;
-          })}
+          {calendarDays.map(date => { const key=calendarDateKey(date); const counts=calendarCounts[key] || {orders:0,dispatched:0,delivered:0,rejected:0}; const inMonth=date.getMonth()===calendarMonth.getMonth(); const selected=selectedOrderDate===key; return <button key={key} type="button" className="secondary" onClick={() => setSelectedOrderDate(key)} style={{minWidth:0,minHeight:54,padding:"5px 2px",opacity:inMonth?1:.38,border:selected?"2px solid #6b55c5":undefined,background:selected?"#eee9ff":undefined,color:selected?"#33206f":undefined}}><strong>{date.getDate()}</strong>{counts.orders+counts.dispatched+counts.delivered+counts.rejected>0 && <div style={{fontSize:10,lineHeight:1.3,marginTop:2}}>{counts.orders>0 && <span title="Orders">●{counts.orders} </span>}{counts.dispatched>0 && <span title="Dispatched" style={{color:"#2563eb"}}>●{counts.dispatched} </span>}{counts.delivered>0 && <span title="Delivered" style={{color:"#15803d"}}>●{counts.delivered} </span>}{counts.rejected>0 && <span title="Rejected" style={{color:"#dc2626"}}>●{counts.rejected}</span>}</div>}</button>; })}
         </div>
         <p className="muted-text" style={{marginTop:8}}>● Orders placed　<span style={{color:"#2563eb"}}>●</span> Dispatched　<span style={{color:"#15803d"}}>●</span> Delivered　<span style={{color:"#dc2626"}}>●</span> Rejected</p>
-        <div className="inline-actions" style={{justifyContent:"space-between",marginTop:8}}>
-          <strong>{selectedOrderDate ? new Date(selectedOrderDate+"T00:00:00").toLocaleDateString("en-IN",{day:"numeric",month:"long",year:"numeric"}) : "Select a date to filter orders"}</strong>
-          <button className="secondary" onClick={() => setSelectedOrderDate("")}>Show all dates</button>
-        </div>
-        {selectedOrderDate && <div className="admin-grid" style={{marginTop:12}}>
-          <div className="admin-stat"><span>Orders placed</span><strong>{selectedDayOrders.length}</strong></div>
-          <div className="admin-stat"><span>Dispatched</span><strong>{dayCount("dispatched")}</strong></div>
-          <div className="admin-stat"><span>Delivered</span><strong>{dayCount("delivered")}</strong></div>
-          <div className="admin-stat"><span>Rejected</span><strong>{dayCount("rejected")}</strong></div>
-        </div>}
-      </div>
+        <div className="inline-actions" style={{justifyContent:"space-between",marginTop:8}}><strong>{selectedOrderDate ? new Date(selectedOrderDate+"T00:00:00").toLocaleDateString("en-IN",{day:"numeric",month:"long",year:"numeric"}) : "Select a date to filter orders"}</strong><div className="inline-actions"><button className="secondary" onClick={() => setSelectedOrderDate("")}>Show all dates</button><button className="secondary" onClick={() => setCalendarOpen(false)}>Close calendar</button></div></div>
+        {selectedOrderDate && <div className="admin-grid" style={{marginTop:12}}><div className="admin-stat"><span>Orders placed</span><strong>{selectedDayOrders.length}</strong></div><div className="admin-stat"><span>Dispatched</span><strong>{dayCount("dispatched")}</strong></div><div className="admin-stat"><span>Delivered</span><strong>{dayCount("delivered")}</strong></div><div className="admin-stat"><span>Rejected</span><strong>{dayCount("rejected")}</strong></div></div>}
+      </div>}
       <div className="inline-actions" style={{margin:"12px 0",justifyContent:"space-between"}}>
         <label style={{display:"flex",alignItems:"center",gap:8,margin:0}}>
           <input type="checkbox" style={{width:16,padding:0,height:16,accentColor:"#8466df"}} checked={filteredOrders.length > 0 && filteredOrders.every(o => selectedOrders.includes(o.id))} onChange={event => setSelectedOrders(old => event.target.checked ? Array.from(new Set([...old, ...filteredOrders.map(o => o.id)])) : old.filter(id => !filteredOrders.some(o => o.id === id)))}/>
@@ -616,7 +603,12 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
               <label>Delivery partner</label><select value={(deliveryEdits[o.id]?.partner ?? o.delivery_partner) || ""} onChange={e => setDeliveryEdits(old => ({...old,[o.id]:{partner:e.target.value,awb:old[o.id]?.awb ?? o.awb_number ?? "",trackingUrl:old[o.id]?.trackingUrl ?? o.tracking_url ?? ""}}))}><option value="">Select courier</option>{DELIVERY_PARTNERS.map(name => <option key={name} value={name}>{name}</option>)}</select>
               <label style={{marginTop:5}}>AWB / Tracking number</label><input value={(deliveryEdits[o.id]?.awb ?? o.awb_number) || ""} onChange={e => setDeliveryEdits(old => ({...old,[o.id]:{partner:old[o.id]?.partner ?? o.delivery_partner ?? "",awb:e.target.value,trackingUrl:old[o.id]?.trackingUrl ?? o.tracking_url ?? ""}}))} placeholder="Enter AWB number"/>
               <button className="secondary" type="button" style={{marginTop:5}} onClick={() => setScannerOrderId(o.id)}>▣ Scan AWB with camera</button>
-              {scannerOrderId === o.id && <AwbCameraScanner onScan={value => { setDeliveryEdits(old => ({...old,[o.id]:{partner:old[o.id]?.partner ?? o.delivery_partner ?? "",awb:value,trackingUrl:old[o.id]?.trackingUrl ?? o.tracking_url ?? ""}})); setScannerOrderId(null); setMessage("AWB scanned. Save courier / AWB to store it."); }} onClose={() => setScannerOrderId(null)}/>}
+              {scannerOrderId === o.id && <AwbCameraScanner onScan={value => {
+                const raw=String(value).trim(); let detectedPartner=""; let detectedTrackingUrl=""; let awb=raw;
+                try { const url=new URL(raw); const host=url.hostname.toLowerCase().replace(/^www\\./,""); const carriers: [string,string[]][] = [["Delhivery",["delhivery.com"]],["Blue Dart",["bluedart.com"]],["DTDC",["dtdc.com"]],["India Post",["indiapost.gov.in","indiapost.nic.in"]],["Ekart Logistics",["ekartlogistics.com"]],["Ecom Express",["ecomexpress.in"]],["Xpressbees",["xpressbees.com"]],["Shadowfax",["shadowfax.in"]],["FedEx",["fedex.com"]],["UPS",["ups.com"]],["DHL",["dhl.com"]],["Aramex",["aramex.com"]],["Gati",["gati.com"]]]; const match=carriers.find(([,domains])=>domains.some(domain=>host===domain||host.endsWith("."+domain))); if(match) detectedPartner=match[0]; const found=["awb","awbno","tracking","trackingnumber","waybill","id"].map(key=>url.searchParams.get(key)).find(Boolean); awb=found||url.pathname.split("/").filter(Boolean).pop()||raw; detectedTrackingUrl=url.toString(); } catch { /* Plain barcode does not identify its carrier. */ }
+                setDeliveryEdits(old=>({...old,[o.id]:{partner:detectedPartner||old[o.id]?.partner||o.delivery_partner||"",awb,trackingUrl:detectedTrackingUrl||old[o.id]?.trackingUrl||o.tracking_url||""}})); setScannerOrderId(null);
+                setMessage(detectedPartner ? "QR identified "+detectedPartner+"; verify details and save." : "AWB scanned: "+awb+". Courier cannot be identified from this barcode; select it manually.");
+              }} onClose={() => setScannerOrderId(null)}/>}
               <label style={{marginTop:5}}>Tracking URL (optional)</label><input value={(deliveryEdits[o.id]?.trackingUrl ?? o.tracking_url) || ""} onChange={e => setDeliveryEdits(old => ({...old,[o.id]:{partner:old[o.id]?.partner ?? o.delivery_partner ?? "",awb:old[o.id]?.awb ?? o.awb_number ?? "",trackingUrl:e.target.value}}))} placeholder="https://..."/>
               <button className="secondary" style={{marginTop:6}} disabled={busy} onClick={() => saveDelivery(o)}>Save courier / AWB</button>
               {o.awb_number && <p className="muted-text" style={{marginTop:4}}>{o.delivery_partner} · {o.awb_number}{o.tracking_url && <> · <a href={o.tracking_url} target="_blank" rel="noreferrer">Track parcel</a></>}</p>}
