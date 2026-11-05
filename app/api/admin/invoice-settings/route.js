@@ -2,6 +2,8 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { requireAdmin } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
 
+export const dynamic = "force-dynamic";
+
 const defaults = { business_name: "Velfrok", phone: "", email: "", address: "", gst_number: "", gst_rate: "0", tax_label: "", tax_rate: "0", terms: "" };
 const fail = (message, status = 400) => Response.json({ error: message }, { status });
 const clean = (value, max = 500) => typeof value === "string" ? value.trim().slice(0, max) : "";
