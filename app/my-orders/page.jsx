@@ -4,7 +4,7 @@ import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabase";
 
 const paymentLabels = { pending_utr: "Payment pending", pending_verification: "UTR under review", accepted: "Payment confirmed", rejected: "Payment rejected", due_on_delivery: "Pay on delivery" };
-const fulfillmentLabels = { pending: "Order received", confirmed: "Confirmed", packed: "Packed", ready_to_ship: "Ready to ship", shipped: "Shipped", delivered: "Delivered", cancelled: "Cancelled" };
+const fulfillmentLabels = { pending: "Order received", confirmed: "Order Confirmed", packed: "Order Packed", ready_to_ship: "Order Dispatched", shipped: "On the Way", delivered: "Delivered", cancelled: "Cancelled" };
 const stages = ["confirmed", "packed", "ready_to_ship", "shipped", "delivered"];
 const money = (n) => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(Number(n) || 0);
 const date = (v) => v && !Number.isNaN(new Date(v).getTime()) ? new Date(v).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "—";
@@ -91,7 +91,7 @@ export default function MyOrdersPage() {
           {order.payment_method === "upi" && payment === "pending_verification" && <p style={{ background: "#f2f5ed", padding: 12, borderRadius: 8, fontSize: 13 }}>Your UTR has been received and is awaiting verification.</p>}
           {needsUtr && <p style={{ background: "#fff7e8", padding: 12, borderRadius: 8, fontSize: 13 }}>UPI payment is not confirmed. You can complete payment or submit your UTR.</p>}
           {status !== "cancelled" && <div style={{ padding: "8px 0 16px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 4, fontSize: 10, marginBottom: 8, color: "#718078" }}>{["Confirmed", "Packed", "Ready", "Shipped", "Delivered"].map((s, i) => <span key={s} style={{ color: stage >= i ? "#0c5141" : "#9ba49d", fontWeight: stage === i ? 800 : 500 }}>{s}</span>)}</div>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 4, fontSize: 10, marginBottom: 8, color: "#718078" }}>{["Confirmed", "Packed", "Dispatched", "On the Way", "Delivered"].map((s, i) => <span key={s} style={{ color: stage >= i ? "#0c5141" : "#9ba49d", fontWeight: stage === i ? 800 : 500 }}>{s}</span>)}</div>
             <div style={{ height: 7, background: "#e8e9e2", borderRadius: 8, overflow: "hidden" }}><div style={{ height: "100%", width: `${stage < 0 ? 0 : (stage + 1) * 20}%`, background: "#0c6b50" }} /></div>
             {status === "pending" && <small style={muted}>Your order is awaiting confirmation.</small>}
           </div>}
