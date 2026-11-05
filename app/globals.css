@@ -1214,3 +1214,25 @@ a {
 @media (prefers-reduced-motion: reduce) {
   .checkout-page *, .checkout-page *::before, .checkout-page *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+/* Keep pointer/touch clicks free of the browser's blue focus flash.
+   Keyboard users still get a clear, on-brand focus indicator. */
+:where(a, button, input, select, textarea, [tabindex]):focus:not(:focus-visible) {
+  outline: none;
+  box-shadow: none;
+}
+
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--forest);
+  outline-offset: 3px;
+}
+
+:where(a, button, input, select, textarea) {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.header-action {
+  text-align: center;
+  white-space: nowrap;
+}
+
