@@ -1,6 +1,7 @@
 import { createHmac } from "node:crypto";
 import { supabaseAdmin } from "@/lib/supabase";
 import { requireUser } from "@/lib/auth";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -29,6 +30,9 @@ export async function POST(req) {
       .select("user_id").eq("user_id", auth.user.id).eq("role", "admin").maybeSingle();
     if (adminError || !admin) return fail("Administrator access required.", 403);
 
+    // Enforce a second, session-scoped limit so failed DB attempt-counter updates cannot enable unlimited guesses.
+    await rateLimit(`admin-otp-verify:${auth.user.id}:${sessionId}`, 5, 600);
+
     const { data: challenge, error } = await db.from("admin_email_otp_challenges")
       .select("id,attempts,expires_at,verified_at").eq("user_id", auth.user.id)
       .eq("session_id", sessionId).order("created_at", { ascending: false }).limit(1).maybeSingle();
@@ -46,10 +50,14 @@ export async function POST(req) {
     if (consumeError) return fail("Verification is temporarily unavailable.", 503);
 
     if (consumed !== true) {
-      const { error: attemptError } = await db.rpc("admin_email_otp_increment_attempt", {
+      const { data: nextAttempts, error: attemptError } = await db.rpc("admin_email_otp_increment_attempt", {
         p_user_id: auth.user.id, p_session_id: sessionId
       });
-      if (attemptError) console.error("Admin OTP attempt counter failed:", attemptError.message);
+      if (attemptError) {
+        console.error("Admin OTP attempt counter failed:", attemptError.message);
+        return fail("Verification is temporarily unavailable. Please try again.", 503);
+      }
+      if (!Number.isInteger(nextAttempts)) return fail("Too many attempts. Sign in again later.", 429);
       return fail("Incorrect or expired code.", 401);
     }
     return Response.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
