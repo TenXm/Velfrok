@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabaseAdminBrowser } from "@/lib/supabase-admin-browser";
 
 type AnyRow = Record<string, any>;
@@ -22,6 +22,54 @@ async function downloadCsv(rows: AnyRow[]) {
   const link = document.createElement("a");
   link.href = url; link.download = "velfrok-orders.csv"; link.click();
   URL.revokeObjectURL(url);
+}
+
+function AwbCameraScanner({ onScan, onClose }: { onScan: (value: string) => void; onClose: () => void }) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [scannerError, setScannerError] = useState("");
+  useEffect(() => {
+    let active = true;
+    let stream: MediaStream | null = null;
+    let frame = 0;
+    const start = async () => {
+      try {
+        const Detector = (window as any).BarcodeDetector;
+        if (!Detector) { setScannerError("Barcode scanning is not supported in this browser. Enter the AWB number manually."); return; }
+        if (!navigator.mediaDevices?.getUserMedia) { setScannerError("Camera access is unavailable. Enter the AWB number manually."); return; }
+        const detector = new Detector({ formats: ["code_128", "code_39", "qr_code", "ean_13", "ean_8", "upc_a", "upc_e", "itf"] });
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false });
+        if (!active || !videoRef.current) { stream.getTracks().forEach(track => track.stop()); return; }
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+        const scan = async () => {
+          if (!active || !videoRef.current) return;
+          try {
+            const codes = await detector.detect(videoRef.current);
+            const value = codes?.find((code: any) => code.rawValue)?.rawValue;
+            if (value) { onScan(String(value).trim()); return; }
+          } catch { /* Keep scanning while the camera is active. */ }
+          frame = requestAnimationFrame(scan);
+        };
+        frame = requestAnimationFrame(scan);
+      } catch (error) {
+        setScannerError(error instanceof Error ? error.message : "Could not start the camera. Enter the AWB number manually.");
+      }
+    };
+    start();
+    return () => {
+      active = false;
+      cancelAnimationFrame(frame);
+      stream?.getTracks().forEach(track => track.stop());
+    };
+  }, [onScan]);
+  return <div role="dialog" aria-modal="true" aria-label="Scan AWB barcode" style={{position:"fixed",inset:0,zIndex:1000,background:"rgba(0,0,0,.78)",display:"grid",placeItems:"center",padding:16}}>
+    <div style={{background:"white",color:"#111",padding:16,borderRadius:12,width:"min(100%,480px)"}}>
+      <div className="section-head"><h3>Scan AWB / Barcode</h3><button className="secondary" onClick={onClose}>Close</button></div>
+      <video ref={videoRef} playsInline muted style={{width:"100%",minHeight:180,background:"#111",borderRadius:8,objectFit:"cover"}}/>
+      <p>{scannerError || "Hold the barcode or QR code inside the camera view."}</p>
+      <button className="secondary" onClick={onClose}>Cancel scan</button>
+    </div>
+  </div>;
 }
 
 function AttributePicker({ name, options, selected, onSelected, onAddOption, disabled = false }: {
@@ -105,6 +153,7 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
   const [orderSearch, setOrderSearch] = useState("");
   const [selectedOrderDate, setSelectedOrderDate] = useState("");
   const [deliveryEdits, setDeliveryEdits] = useState<Record<string, { partner: string; awb: string; trackingUrl: string }>>({});
+  const [scannerOrderId, setScannerOrderId] = useState<string | null>(null);
   const [stockFilter, setStockFilter] = useState("all");
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
@@ -507,6 +556,8 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
             {o.order_acceptance_status === "accepted" && ["packed","ready_to_ship","shipped"].includes(o.fulfillment_status) && <div style={{marginTop:10,minWidth:190}}>
               <label>Delivery partner</label><select value={(deliveryEdits[o.id]?.partner ?? o.delivery_partner) || ""} onChange={e => setDeliveryEdits(old => ({...old,[o.id]:{partner:e.target.value,awb:old[o.id]?.awb ?? o.awb_number ?? "",trackingUrl:old[o.id]?.trackingUrl ?? o.tracking_url ?? ""}}))}><option value="">Select courier</option>{DELIVERY_PARTNERS.map(name => <option key={name} value={name}>{name}</option>)}</select>
               <label style={{marginTop:5}}>AWB / Tracking number</label><input value={(deliveryEdits[o.id]?.awb ?? o.awb_number) || ""} onChange={e => setDeliveryEdits(old => ({...old,[o.id]:{partner:old[o.id]?.partner ?? o.delivery_partner ?? "",awb:e.target.value,trackingUrl:old[o.id]?.trackingUrl ?? o.tracking_url ?? ""}}))} placeholder="Enter AWB number"/>
+              <button className="secondary" type="button" style={{marginTop:5}} onClick={() => setScannerOrderId(o.id)}>▣ Scan AWB with camera</button>
+              {scannerOrderId === o.id && <AwbCameraScanner onScan={value => { setDeliveryEdits(old => ({...old,[o.id]:{partner:old[o.id]?.partner ?? o.delivery_partner ?? "",awb:value,trackingUrl:old[o.id]?.trackingUrl ?? o.tracking_url ?? ""}})); setScannerOrderId(null); setMessage("AWB scanned. Save courier / AWB to store it."); }} onClose={() => setScannerOrderId(null)}/>}
               <label style={{marginTop:5}}>Tracking URL (optional)</label><input value={(deliveryEdits[o.id]?.trackingUrl ?? o.tracking_url) || ""} onChange={e => setDeliveryEdits(old => ({...old,[o.id]:{partner:old[o.id]?.partner ?? o.delivery_partner ?? "",awb:old[o.id]?.awb ?? o.awb_number ?? "",trackingUrl:e.target.value}}))} placeholder="https://..."/>
               <button className="secondary" style={{marginTop:6}} disabled={busy} onClick={() => saveDelivery(o)}>Save courier / AWB</button>
               {o.awb_number && <p className="muted-text" style={{marginTop:4}}>{o.delivery_partner} · {o.awb_number}{o.tracking_url && <> · <a href={o.tracking_url} target="_blank" rel="noreferrer">Track parcel</a></>}</p>}
