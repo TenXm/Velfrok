@@ -489,7 +489,13 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
     [o.order_number, o.customer_name, o.mobile].some(v => String(v || "").toLowerCase().includes(orderSearch.toLowerCase()))
   );
   const selectedDayOrders = selectedOrderDate ? orders.filter(o => localDateKey(o.created_at) === selectedOrderDate) : [];
-  const dayCount = (status: string) => selectedDayOrders.filter(o => status === "rejected" ? o.order_acceptance_status === "rejected" : o.fulfillment_status === status).length;
+  const dayCount = (event: string) => orders.filter(o => event === "dispatched"
+    ? localDateKey(o.dispatched_at || "") === selectedOrderDate
+    : event === "delivered"
+      ? localDateKey(o.delivered_at || "") === selectedOrderDate
+      : event === "rejected"
+        ? localDateKey(o.rejected_at || "") === selectedOrderDate
+        : false).length;
   const pendingPayments = orders.filter(o => ["pending_utr", "pending_verification"].includes(o.payment_status)).length;
   const revenue = orders.filter(o => o.payment_status === "accepted").reduce((sum,o) => sum + Number(o.total_amount || 0), 0);
   const lowStock = products.filter(p => Number(p.quantity) < 10).length;
@@ -532,7 +538,7 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
         </div>
         {selectedOrderDate && <div className="admin-grid" style={{marginTop:12}}>
           <div className="admin-stat"><span>Total orders</span><strong>{selectedDayOrders.length}</strong></div>
-          <div className="admin-stat"><span>Dispatched</span><strong>{dayCount("shipped")}</strong></div>
+          <div className="admin-stat"><span>Dispatched</span><strong>{dayCount("dispatched")}</strong></div>
           <div className="admin-stat"><span>Delivered</span><strong>{dayCount("delivered")}</strong></div>
           <div className="admin-stat"><span>Rejected</span><strong>{dayCount("rejected")}</strong></div>
         </div>}
