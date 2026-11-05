@@ -80,11 +80,19 @@ export async function GET(req) {
   const rows = [];
   for (const order of orders || []) {
     const items = Array.isArray(order.order_items) && order.order_items.length ? order.order_items : [null];
-    for (const item of items) rows.push({
-      ...order, product_name: item?.product_name, product_id: item?.product_id, sku: item?.sku,
-      quantity: item?.quantity, options: item?.options, unit_price: item?.unit_price, gst_rate: item?.gst_rate,
-      line_total: item?.line_total,
-    });
+    for (const item of items) {
+      const lineTotal = Number(item?.line_total || 0);
+      const subtotal = Number(order.subtotal || 0);
+      const discount = Number(order.discount_amount || order.discount || 0);
+      const lineDiscount = subtotal > 0 ? discount * lineTotal / subtotal : 0;
+      const gstRate = Number(item?.gst_rate || 0);
+      const gstAmount = gstRate > 0 ? Math.max(0, lineTotal - lineDiscount) * gstRate / (100 + gstRate) : 0;
+      rows.push({
+        ...order, product_name: item?.product_name, product_id: item?.product_id, sku: item?.sku,
+        quantity: item?.quantity, options: item?.options, unit_price: item?.unit_price, gst_rate: gstRate,
+        gst_amount: gstAmount, line_total: lineTotal,
+      });
+    }
   }
   const workbook = await makeWorkbook(rows);
   const fileName = `Velfrok_Orders_${window.fileMonth}.xlsx`;
