@@ -128,10 +128,10 @@ export default function CheckoutPage() {
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "অর্ডার সম্পন্ন করা যায়নি।");
-      localStorage.removeItem(CART_KEY);
       if (paymentMethod === "upi") {
         router.push(`/payment/${result.order?.id || result.orderId}`);
       } else {
+        localStorage.removeItem(CART_KEY);
         setItems([]);
         setMessage(`অর্ডার ${result.order?.order_number || ""} তৈরি হয়েছে। ডেলিভারির সময় পেমেন্ট করতে হবে।`);
       }
