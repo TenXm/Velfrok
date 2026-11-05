@@ -688,9 +688,11 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
                   const partner = deliveryEdits[o.id]?.partner || o.delivery_partner || "";
                   const selected = DELIVERY_PARTNERS.find(item => item.name === partner);
                   if (!partner || !awb) { setError("Select a courier company before scanning the AWB."); setScannerOrderId(null); return; }
+                  const trackingUrl = selected?.url || o.tracking_url || "";
+                  setDeliveryEdits(old => ({...old,[o.id]:{partner,awb,trackingUrl}}));
                   setBusy(true); setError(""); setMessage("");
                   try {
-                    await api("/api/admin/orders", { method: "PATCH", body: JSON.stringify({ orderId: o.id, action: "save_delivery", deliveryPartner: partner, awbNumber: awb, trackingUrl: selected?.url || o.tracking_url || "" }) });
+                    await api("/api/admin/orders", { method: "PATCH", body: JSON.stringify({ orderId: o.id, action: "save_delivery", deliveryPartner: partner, awbNumber: awb, trackingUrl }) });
                     setMessage("AWB scanned and saved to this order.");
                     setScannerOrderId(null);
                     await loadAll();
