@@ -9,6 +9,26 @@ update public.orders
 set rejected_at = created_at
 where order_acceptance_status = 'rejected' and rejected_at is null;
 
+create or replace function public.velfrok_stamp_rejected_order()
+returns trigger
+language plpgsql
+set search_path = ''
+as $function$
+begin
+  if new.order_acceptance_status = 'rejected'
+     and old.order_acceptance_status is distinct from 'rejected'
+     and new.rejected_at is null then
+    new.rejected_at := now();
+  end if;
+  return new;
+end;
+$function$;
+
+drop trigger if exists velfrok_stamp_rejected_order on public.orders;
+create trigger velfrok_stamp_rejected_order
+before update of order_acceptance_status on public.orders
+for each row execute function public.velfrok_stamp_rejected_order();
+
 create index if not exists orders_rejected_retention_idx
   on public.orders (rejected_at)
   where order_acceptance_status = 'rejected' and rejected_at is not null;
