@@ -176,9 +176,7 @@ export default function PaymentPage({ params }) {
 
               {upiLink && (
                 <>
-                  <a className="pay-app-link" href={upiLink}>
-                    <button type="button">Pay with UPI app</button>
-                  </a>
+                  <a className="pay-app-link" href={upiLink}>Open UPI app <span aria-hidden="true">↗</span></a>
 
                   <p className="pay-upi-id">UPI ID <strong>{UPI_ID}</strong></p>
 
