@@ -666,11 +666,19 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
               {(deliveryEdits[o.id]?.partner || o.delivery_partner) && <>
                 <label style={{marginTop:5}}>AWB Number</label><input value={(deliveryEdits[o.id]?.awb ?? o.awb_number) || ""} onChange={e => setDeliveryEdits(old => ({...old,[o.id]:{partner:old[o.id]?.partner ?? o.delivery_partner ?? "",awb:e.target.value,trackingUrl:old[o.id]?.trackingUrl ?? o.tracking_url ?? ""}}))} placeholder="Enter AWB number"/>
                 <button className="secondary" type="button" style={{marginTop:5}} onClick={() => setScannerOrderId(o.id)}>▣ Scan AWB</button>
-                {scannerOrderId === o.id && <AwbCameraScanner onScan={value => {
+                {scannerOrderId === o.id && <AwbCameraScanner onScan={async value => {
                   const awb = String(value).trim();
-                  setDeliveryEdits(old => ({...old,[o.id]:{partner:old[o.id]?.partner ?? o.delivery_partner ?? "",awb,trackingUrl:old[o.id]?.trackingUrl ?? o.tracking_url ?? ""}}));
-                  setScannerOrderId(null);
-                  setMessage("AWB scanned. Save it to attach it to this order.");
+                  const partner = deliveryEdits[o.id]?.partner || o.delivery_partner || "";
+                  const selected = DELIVERY_PARTNERS.find(item => item.name === partner);
+                  if (!partner || !awb) { setError("Select a courier company before scanning the AWB."); setScannerOrderId(null); return; }
+                  setBusy(true); setError(""); setMessage("");
+                  try {
+                    await api("/api/admin/orders", { method: "PATCH", body: JSON.stringify({ orderId: o.id, action: "save_delivery", deliveryPartner: partner, awbNumber: awb, trackingUrl: selected?.url || o.tracking_url || "" }) });
+                    setMessage("AWB scanned and saved to this order.");
+                    setScannerOrderId(null);
+                    await loadAll();
+                  } catch (e) { setError(e instanceof Error ? e.message : "Could not save scanned AWB."); setScannerOrderId(null); }
+                  finally { setBusy(false); }
                 }} onClose={() => setScannerOrderId(null)}/>}
                 <button className="secondary" style={{marginTop:6}} disabled={busy || !(deliveryEdits[o.id]?.awb ?? o.awb_number)} onClick={() => saveDelivery(o)}>Save AWB</button>
                 {o.awb_number && <p className="muted-text" style={{marginTop:4}}>{o.delivery_partner} · {o.awb_number}{o.tracking_url && <> · <a href={o.tracking_url} target="_blank" rel="noreferrer">Track parcel</a></>}</p>}
