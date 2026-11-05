@@ -12,7 +12,7 @@ export async function GET(req) {
     const { user, error } = await requireAdmin(req);
     if (error) return error;
     await rateLimit(`admin-orders-get:${user.id}`, 60, 60);
-    const { data, error: dbError } = await supabaseAdmin().from("orders").select("*, order_items(*)").order("created_at", { ascending: false }).limit(200);
+    const { data, error: dbError } = await supabaseAdmin().from("orders").select("*, order_items(*)").order("created_at", { ascending: false }).limit(1000);
     if (dbError) { console.error("Admin order lookup failed:", dbError.message); return fail("Could not load orders.", 500); }
     return Response.json({ orders: data || [] }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) { if (error instanceof Response) return error; console.error("Admin orders GET failed:", error); return fail("Server error.", 500); }
