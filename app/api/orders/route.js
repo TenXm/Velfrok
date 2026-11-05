@@ -54,7 +54,7 @@ export async function POST(req) {
       for (const item of requestedSkus) {
         const productId = bySku.get(item.sku);
         if (!productId) return responseError("A product in your cart is unavailable.", 409);
-        requestedItems.push({ productId, quantity: item.quantity });
+        requestedItems.push({ productId, quantity: item.quantity, options: item.options });
       }
     }
     const combined = new Map();
