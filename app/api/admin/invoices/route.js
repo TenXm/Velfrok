@@ -81,7 +81,7 @@ async function makeInvoice(order, settings) {
   const orderNo = text(order.order_number || String(order.id).slice(0, 8));
   const items = Array.isArray(order.order_items) ? order.order_items : [];
   const chunks = [];
-  for (let index = 0; index < Math.max(items.length, 1); index += 7) chunks.push(items.slice(index, index + 7));
+  for (let index = 0; index < Math.max(items.length, 1); index += 5) chunks.push(items.slice(index, index + 5));
 
   const safe = value => safeText(value, font);
   const moneyText = value => {
