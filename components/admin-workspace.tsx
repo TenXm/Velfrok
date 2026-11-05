@@ -97,6 +97,23 @@ function AwbCameraScanner({ onScan, onClose }: { onScan: (value: string) => void
   </div>;
 }
 
+function CourierCompanyPicker({ value, onChange }: { value: string; onChange: (name: string) => void }) {
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const matches = DELIVERY_PARTNERS.filter(item => item.name.toLowerCase().includes(query.trim().toLowerCase()));
+  const selected = DELIVERY_PARTNERS.find(item => item.name === value);
+  return <div className="picker">
+    <button type="button" className="secondary" style={{width:"100%",textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center"}} onClick={() => { setOpen(current => !current); setQuery(""); }}>
+      <span>{selected?.name || "Select Courier Company"}</span><span>⌄</span>
+    </button>
+    {open && <div className="picker-menu">
+      <input autoFocus value={query} onChange={event => setQuery(event.target.value)} placeholder="Search courier company..."/>
+      {matches.length ? matches.map(item => <button type="button" key={item.name} onClick={() => { onChange(item.name); setOpen(false); setQuery(""); }}>{item.name}</button>) : <p className="empty-match">No courier company found.</p>}
+      <button type="button" className="close-menu" onClick={() => setOpen(false)}>Close</button>
+    </div>}
+  </div>;
+}
+
 function AttributePicker({ name, options, selected, onSelected, onAddOption, disabled = false }: {
   name: string; options: Option[]; selected: string[]; onSelected: (values: string[]) => void;
   onAddOption: (name: string, value: string) => Promise<Option | null>; disabled?: boolean;
@@ -662,7 +679,7 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
           <td><strong>{o.payment_method?.toUpperCase() || "UPI"} · {o.payment_status}</strong><br/><span className="muted-text">Acceptance: {o.order_acceptance_status || "pending"} · UTR: {o.utr_number || "—"}</span>{o.payment_method === "cod" ? <div className="inline-actions" style={{marginTop:6}}>{o.order_acceptance_status === "pending" && <><button className="primary" disabled={busy} onClick={() => runCodAction(o,"accept_cod")}>Accept COD</button></>}{o.fulfillment_status === "delivered" && o.payment_status === "due_on_delivery" && <button className="primary" disabled={busy} onClick={() => runCodAction(o,"collect_cod")}>Record cash received</button>}</div> : <><select value={edit.payment} onChange={e => setOrderEdits(old => ({...old,[o.id]:{...edit,payment:e.target.value}}))}><option value="accepted">Accept payment</option><option value="rejected">Reject payment</option><option value="pending_utr" disabled>Pending UTR (read only)</option><option value="pending_verification" disabled>Pending verification (read only)</option></select><button className="primary" style={{marginTop:6}} disabled={busy || !["accepted","rejected"].includes(edit.payment) || edit.payment === o.payment_status} onClick={() => updateOrder(o,"payment")}>Submit payment</button></>}{o.order_acceptance_status === "pending" && <button className="danger" style={{marginTop:6}} disabled={busy} onClick={() => runCodAction(o,"reject_order")}>Reject order</button>}</td>
           <td><strong>{{confirmed:"Order Confirmed",packed:"Order Packed",ready_to_ship:"Order Dispatched",shipped:"On the Way",delivered:"Delivered"}[o.fulfillment_status] || o.fulfillment_status}</strong><select value={edit.fulfillment} onChange={e => setOrderEdits(old => ({...old,[o.id]:{...edit,fulfillment:e.target.value}}))}><option value={o.fulfillment_status}>{{confirmed:"Order Confirmed",packed:"Order Packed",ready_to_ship:"Order Dispatched",shipped:"On the Way",delivered:"Delivered"}[o.fulfillment_status] || o.fulfillment_status}</option>{next !== o.fulfillment_status && <option value={next}>{{confirmed:"Order Confirmed",packed:"Order Packed",ready_to_ship:"Order Dispatched",shipped:"On the Way",delivered:"Delivered"}[next] || next}</option>}</select><button className="primary" style={{marginTop:6}} disabled={busy || edit.fulfillment === o.fulfillment_status || o.order_acceptance_status !== "accepted" || (o.payment_method !== "cod" && o.payment_status !== "accepted")} onClick={() => updateOrder(o,"fulfillment")}>Submit status</button></td>
           <td>{o.order_acceptance_status === "accepted" && ["packed","ready_to_ship","shipped"].includes(o.fulfillment_status) && <div style={{marginTop:10,minWidth:190}}>
-              <label>Courier Company</label><select value={(deliveryEdits[o.id]?.partner ?? o.delivery_partner) || ""} onChange={e => { const selected = DELIVERY_PARTNERS.find(item => item.name === e.target.value); setDeliveryEdits(old => ({...old,[o.id]:{partner:e.target.value,awb:old[o.id]?.awb ?? o.awb_number ?? "",trackingUrl:selected?.url || ""}})); }}><option value="">Select Courier Company</option>{DELIVERY_PARTNERS.map(item => <option key={item.name} value={item.name}>{item.name}</option>)}</select>
+              <label>Courier Company</label><CourierCompanyPicker value={(deliveryEdits[o.id]?.partner ?? o.delivery_partner) || ""} onChange={name => { const selected = DELIVERY_PARTNERS.find(item => item.name === name); setDeliveryEdits(old => ({...old,[o.id]:{partner:name,awb:old[o.id]?.awb ?? o.awb_number ?? "",trackingUrl:selected?.url || ""}})); }}/>
               {(deliveryEdits[o.id]?.partner || o.delivery_partner) && <>
                 <label style={{marginTop:5}}>AWB Number</label><input value={(deliveryEdits[o.id]?.awb ?? o.awb_number) || ""} onChange={e => setDeliveryEdits(old => ({...old,[o.id]:{partner:old[o.id]?.partner ?? o.delivery_partner ?? "",awb:e.target.value,trackingUrl:old[o.id]?.trackingUrl ?? o.tracking_url ?? ""}}))} placeholder="Enter AWB number"/>
                 <button className="secondary" type="button" style={{marginTop:5}} onClick={() => setScannerOrderId(o.id)}>▣ Scan AWB</button>
