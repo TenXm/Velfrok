@@ -40,7 +40,7 @@ export default function CheckoutPage() {
         const product = products.find((p) => p.id === entry?.productId);
         const quantity = Number(entry?.quantity);
         return product && Number.isInteger(quantity) && quantity > 0 && quantity <= 10
-          ? [{ productId: product.id, quantity, name: product.name, price: product.price, image: product.image || product.image_url || "" }]
+          ? [{ productId: product.id, quantity, options: entry?.options && typeof entry.options === "object" && !Array.isArray(entry.options) ? entry.options : {}, name: product.name, price: product.price, image: product.image || product.image_url || "" }]
           : [];
       }) : [];
       setItems(restored);
@@ -71,7 +71,7 @@ export default function CheckoutPage() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           code: couponCode,
-          items: items.map((item) => ({ product_id: item.productId, quantity: item.quantity })),
+          items: items.map((item) => ({ product_id: item.productId, quantity: item.quantity, options: item.options || {} })),
         }),
       });
       const result = await response.json();
@@ -280,7 +280,7 @@ export default function CheckoutPage() {
                           {item.image ? <img src={item.image} alt="" loading="lazy" /> : <span>V</span>}
                           <i>{item.quantity}</i>
                         </div>
-                        <div className="checkout-item-details"><strong>{item.name}</strong><small>Qty: {item.quantity}</small></div>
+                        <div className="checkout-item-details"><strong>{item.name}</strong><small>Qty: {item.quantity}{Object.entries(item.options || {}).map(([key, value]) => `, ${key}: ${value}`).join("")}</small></div>
                         <b>₹{(item.price * item.quantity).toFixed(2)}</b>
                       </div>
                     ))}
