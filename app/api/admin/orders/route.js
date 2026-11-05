@@ -51,6 +51,28 @@ export async function PATCH(req) {
       return Response.json({ ok: true, result: data }, { headers: { "Cache-Control": "no-store" } });
     }
 
+    if (body?.action === "save_delivery") {
+      const partner = clean(body.deliveryPartner, 80);
+      const awb = clean(body.awbNumber, 100);
+      const trackingUrl = clean(body.trackingUrl, 500);
+      if (!partner || !awb) return fail("Select a delivery partner and enter an AWB number.", 400);
+      if (trackingUrl && !/^https:\/\//i.test(trackingUrl)) return fail("Tracking URL must use HTTPS.", 400);
+      const db = supabaseAdmin();
+      const { data: existing, error: lookupError } = await db.from("orders")
+        .select("id,order_acceptance_status,fulfillment_status").eq("id", id).maybeSingle();
+      if (lookupError) return fail("Could not verify order.", 500);
+      if (!existing) return fail("Order not found.", 404);
+      if (existing.order_acceptance_status !== "accepted" || !["packed","ready_to_ship","shipped"].includes(existing.fulfillment_status)) {
+        return fail("Accept and prepare the order before assigning a courier.", 409);
+      }
+      const { data: updated, error: updateError } = await db.from("orders")
+        .update({ delivery_partner: partner, awb_number: awb, tracking_url: trackingUrl || null })
+        .eq("id", id).select("id,delivery_partner,awb_number,tracking_url").maybeSingle();
+      if (updateError || !updated) return fail("Could not save delivery details.", 500);
+      try { await auditLog(user.email || user.id, "order.delivery.save", { id, partner, awb }, clientIp(req)); } catch (e) { console.error("Audit logging failed:", e); }
+      return Response.json({ ok: true, order: updated }, { headers: { "Cache-Control": "no-store" } });
+    }
+
     const hasPaymentChange = body?.paymentStatus !== undefined;
     const hasFulfillmentChange = body?.fulfillmentStatus !== undefined;
     if (hasPaymentChange === hasFulfillmentChange) return fail("Submit exactly one payment or fulfillment change.", 400);
@@ -77,10 +99,13 @@ export async function PATCH(req) {
     if (existing.payment_method === "cod" && !["due_on_delivery","accepted"].includes(existing.payment_status)) return fail("COD payment state is invalid.", 409);
     if (NEXT_STATUS[existing.fulfillment_status] !== fulfillmentStatus) return fail("Invalid fulfillment transition. Advance one stage at a time.", 409);
 
-    const { data: updated, error: updateError } = await db.from("orders").update({ fulfillment_status: fulfillmentStatus })
+    const fulfillmentUpdate = { fulfillment_status: fulfillmentStatus };
+    if (fulfillmentStatus === "shipped") fulfillmentUpdate.dispatched_at = new Date().toISOString();
+    if (fulfillmentStatus === "delivered") fulfillmentUpdate.delivered_at = new Date().toISOString();
+    const { data: updated, error: updateError } = await db.from("orders").update(fulfillmentUpdate)
       .eq("id", id).eq("order_acceptance_status","accepted").eq("payment_method",existing.payment_method)
       .eq("payment_status",existing.payment_status).eq("fulfillment_status",existing.fulfillment_status)
-      .select("id,fulfillment_status").maybeSingle();
+      .select("id,fulfillment_status,dispatched_at,delivered_at").maybeSingle();
     if (updateError) { console.error("Fulfillment update failed:", updateError.message); return fail("Fulfillment update failed.", 500); }
     if (!updated) return fail("The order changed while you were updating it. Refresh and try again.", 409);
     try { await auditLog(user.email || user.id, "order.fulfillment.update", { id, fulfillmentStatus }, clientIp(req)); } catch (e) { console.error("Audit logging failed:", e); }
