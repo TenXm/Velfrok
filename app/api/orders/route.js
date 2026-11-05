@@ -22,7 +22,6 @@ export async function POST(req) {
     const paymentMethod = body.paymentMethod;
     if (!["upi", "cod"].includes(paymentMethod)) return responseError("Choose a valid payment method.", 400);
     if (paymentMethod === "cod") {
-      if (process.env.COD_ENABLED !== "true") return responseError("Cash on Delivery is currently unavailable.", 403);
       const { data: flag, error: flagError } = await supabaseAdmin().from("store_feature_flags").select("enabled").eq("flag_key", "cod_enabled").maybeSingle();
       if (flagError || flag?.enabled !== true) return responseError("Cash on Delivery is currently unavailable.", 403);
     }
