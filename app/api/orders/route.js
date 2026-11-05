@@ -33,7 +33,11 @@ export async function POST(req) {
       const quantity = Number(item.quantity ?? item.qty);
       if (!Number.isInteger(quantity) || quantity < 1 || quantity > 10) return responseError("Each product quantity must be between 1 and 10.", 400);
       const productId = item.product_id ?? item.productId ?? item.id;
-      if (typeof productId === "string" && UUID_PATTERN.test(productId)) requestedItems.push({ productId: productId.toLowerCase(), quantity });
+      const rawOptions = item.options && typeof item.options === "object" && !Array.isArray(item.options) ? item.options : {};
+      const optionEntries = Object.entries(rawOptions);
+      if (optionEntries.length > 12 || optionEntries.some(([key, value]) => typeof key !== "string" || !key.trim() || key.length > 40 || typeof value !== "string" || !value.trim() || value.length > 80)) return responseError("Invalid product options.", 400);
+      const options = Object.fromEntries(optionEntries.map(([key, value]) => [key.trim(), value.trim()]));
+      if (typeof productId === "string" && UUID_PATTERN.test(productId)) requestedItems.push({ productId: productId.toLowerCase(), quantity, options });
       else {
         const sku = clean(item.sku, 40);
         if (!sku) return responseError("Invalid product identifier.", 400);
@@ -54,12 +58,20 @@ export async function POST(req) {
       }
     }
     const combined = new Map();
+    const productQuantities = new Map();
     for (const item of requestedItems) {
-      const quantity = (combined.get(item.productId) || 0) + item.quantity;
-      if (quantity > 10) return responseError("Maximum quantity per product is 10.", 400);
-      combined.set(item.productId, quantity);
+      const variantKey = JSON.stringify(item.options, Object.keys(item.options).sort());
+      const key = `${item.productId}:${variantKey}`;
+      const quantity = (combined.get(key)?.quantity || 0) + item.quantity;
+      if (quantity > 10) return responseError("Maximum quantity per product variant is 10.", 400);
+      combined.set(key, { productId: item.productId, quantity, options: item.options });
+      const productTotal = (productQuantities.get(item.productId) || 0) + item.quantity;
+      if (productTotal > 10) return responseError("Maximum quantity per product is 10.", 400);
+      productQuantities.set(item.productId, productTotal);
     }
-    const rpcItems = [...combined.entries()].map(([product_id, quantity]) => ({ product_id, quantity })).sort((a,b) => a.product_id.localeCompare(b.product_id));
+    const rpcItems = [...combined.values()].map(item => ({
+      product_id: item.productId, quantity: item.quantity, options: item.options,
+    })).sort((a,b) => a.product_id.localeCompare(b.product_id) || JSON.stringify(a.options).localeCompare(JSON.stringify(b.options)));
     if (!rpcItems.length) return responseError("Your cart is empty.", 400);
 
     const couponCode = typeof body.coupon === "string" ? body.coupon.trim() : "";
