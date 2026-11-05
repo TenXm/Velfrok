@@ -545,7 +545,7 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
       : fulfillment === "ready_to_ship" ? "dispatched"
       : acceptance === "pending" ? "pending"
       : acceptance === "accepted" ? "accepted" : "";
-    const matchesStatus = orderStatusFilters.length === 0 || orderStatusFilters.includes(status);
+    const matchesStatus = orderStatusFilters.length === 0 ? status !== "delivered" : orderStatusFilters.includes(status);
     const matchesDate = !selectedOrderDate || [o.created_at,o.dispatched_at,o.delivered_at,o.rejected_at].some(value => localDateKey(value || "") === selectedOrderDate);
     const matchesSearch = [o.order_number, o.customer_name, o.mobile].some(v => String(v || "").toLowerCase().includes(orderSearch.toLowerCase()));
     return matchesStatus && matchesDate && matchesSearch;
