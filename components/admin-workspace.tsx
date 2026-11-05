@@ -155,6 +155,7 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
   const [productSearch, setProductSearch] = useState("");
   const [orderSearch, setOrderSearch] = useState("");
   const [selectedOrderDate, setSelectedOrderDate] = useState("");
+  const [orderStatusFilters, setOrderStatusFilters] = useState<string[]>([]);
   const [calendarMonth, setCalendarMonth] = useState(() => new Date());
   const [deliveryEdits, setDeliveryEdits] = useState<Record<string, { partner: string; awb: string; trackingUrl: string }>>({});
   const [scannerOrderId, setScannerOrderId] = useState<string | null>(null);
@@ -486,10 +487,18 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
     const stock = Number(p.quantity || 0);
     return matches && (stockFilter === "all" || (stockFilter === "low" && stock > 0 && stock < 10) || (stockFilter === "out" && stock === 0));
   }), [products, productSearch, stockFilter]);
-  const filteredOrders = orders.filter(o =>
-    (!selectedOrderDate || [o.created_at,o.dispatched_at,o.delivered_at,o.rejected_at].some(value => localDateKey(value || "") === selectedOrderDate)) &&
-    [o.order_number, o.customer_name, o.mobile].some(v => String(v || "").toLowerCase().includes(orderSearch.toLowerCase()))
-  );
+  const filteredOrders = orders.filter(o => {
+    const acceptance = String(o.order_acceptance_status || "").toLowerCase();
+    const fulfillment = String(o.fulfillment_status || "").toLowerCase();
+    const status = acceptance === "rejected" ? "rejected"
+      : fulfillment === "delivered" || Boolean(o.delivered_at) ? "delivered"
+      : acceptance === "pending" ? "pending"
+      : acceptance === "accepted" ? "accepted" : "";
+    const matchesStatus = orderStatusFilters.length === 0 || orderStatusFilters.includes(status);
+    const matchesDate = !selectedOrderDate || [o.created_at,o.dispatched_at,o.delivered_at,o.rejected_at].some(value => localDateKey(value || "") === selectedOrderDate);
+    const matchesSearch = [o.order_number, o.customer_name, o.mobile].some(v => String(v || "").toLowerCase().includes(orderSearch.toLowerCase()));
+    return matchesStatus && matchesDate && matchesSearch;
+  });
   const selectedDayOrders = selectedOrderDate ? orders.filter(o => localDateKey(o.created_at) === selectedOrderDate) : [];
   const dayCount = (event: string) => orders.filter(o => event === "dispatched"
     ? localDateKey(o.dispatched_at || "") === selectedOrderDate
@@ -554,7 +563,7 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
     {tab === "orders" && <div className="admin-card">
       <div className="section-head"><h2>Order management</h2><div className="inline-actions"><input style={{width:220}} value={orderSearch} onChange={e => setOrderSearch(e.target.value)} placeholder="Search order / customer"/><button className="secondary" onClick={() => downloadCsv(filteredOrders)}>Export CSV</button></div></div>
       <div className="admin-card" style={{marginBottom:14}}>
-        <div className="section-head"><h3>📅 Order calendar</h3><div className="inline-actions"><button className="secondary" onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(),calendarMonth.getMonth()-1,1))}>‹</button><strong>{calendarMonth.toLocaleDateString("en-IN",{month:"long",year:"numeric"})}</strong><button className="secondary" onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(),calendarMonth.getMonth()+1,1))}>›</button></div></div>
+        <div className="section-head" style={{flexWrap:"wrap",gap:10}}><h3>📅 Order calendar</h3><div className="inline-actions" style={{flexWrap:"wrap"}}><details style={{position:"relative"}}><summary className="secondary" style={{cursor:"pointer",listStyle:"none",padding:"8px 12px",border:"1px solid #d1d5db",borderRadius:8,whiteSpace:"nowrap"}}>Filter status{orderStatusFilters.length ? ` (${orderStatusFilters.length})` : " ▾"}</summary><div style={{position:"absolute",right:0,top:"calc(100% + 6px)",zIndex:20,minWidth:190,padding:12,background:"white",color:"#111",border:"1px solid #ddd",borderRadius:10,boxShadow:"0 8px 24px rgba(0,0,0,.14)"}}>{[["accepted","Accepted order"],["rejected","Rejected order"],["delivered","Delivered order"],["pending","Pending order"]].map(([value,label])=><label key={value} style={{display:"flex",alignItems:"center",gap:8,margin:"7px 0",whiteSpace:"nowrap"}}><input type="checkbox" checked={orderStatusFilters.includes(value)} onChange={event=>setOrderStatusFilters(old=>event.target.checked?[...old,value]:old.filter(item=>item!==value))} style={{width:16,height:16}}/>{label}</label>)}<button type="button" className="secondary" style={{width:"100%",marginTop:8}} onClick={()=>setOrderStatusFilters([])}>Clear filters</button></div></details><button className="secondary" onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(),calendarMonth.getMonth()-1,1))}>‹</button><strong>{calendarMonth.toLocaleDateString("en-IN",{month:"long",year:"numeric"})}</strong><button className="secondary" onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(),calendarMonth.getMonth()+1,1))}>›</button></div></div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(7,minmax(0,1fr))",gap:5,textAlign:"center"}}>
           {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(day => <small key={day} className="muted-text" style={{padding:5}}>{day}</small>)}
           {calendarDays.map(date => {
