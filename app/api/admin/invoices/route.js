@@ -75,15 +75,27 @@ async function makeInvoice(order, settings) {
   const discount = Number(order.discount_amount ?? order.discount ?? 0);
   const shipping = Number(order.shipping_amount ?? order.shipping ?? 0);
   const total = Number(order.total_amount ?? order.total ?? Math.max(0, subtotal - discount + shipping));
-  // GST is extracted from tax-inclusive line prices only for the server-generated invoice.
+  // Allocate the order-level coupon discount proportionally across all invoice lines
+  // before extracting GST from tax-inclusive prices. This keeps the tax base aligned
+  // with the discounted consideration while preserving each line's GST rate.
   const gstByRate = new Map();
+  const invoiceLineSubtotal = items.reduce((sum, item) => {
+    const amount = Number(item.line_total ?? (Number(item.unit_price || 0) * Number(item.quantity || 0)));
+    return sum + (Number.isFinite(amount) && amount > 0 ? amount : 0);
+  }, 0);
+  const discountRatio = invoiceLineSubtotal > 0
+    ? Math.min(1, Math.max(0, discount / invoiceLineSubtotal))
+    : 0;
   for (const item of items) {
     const rate = Number(item.gst_rate || 0);
-    const lineAmount = Number(item.line_total ?? (Number(item.unit_price || 0) * Number(item.quantity || 0)));
-    if (!rate || !Number.isFinite(rate) || lineAmount <= 0) continue;
-    const tax = lineAmount * rate / (100 + rate);
+    const originalLineAmount = Number(item.line_total ?? (Number(item.unit_price || 0) * Number(item.quantity || 0)));
+    if (!Number.isFinite(rate) || rate < 0 || !Number.isFinite(originalLineAmount) || originalLineAmount <= 0) continue;
+    const lineDiscount = originalLineAmount * discountRatio;
+    const discountedLineAmount = Math.max(0, originalLineAmount - lineDiscount);
+    if (!rate || discountedLineAmount <= 0) continue;
+    const tax = discountedLineAmount * rate / (100 + rate);
     const row = gstByRate.get(rate) || { taxable: 0, tax: 0 };
-    row.taxable += lineAmount - tax;
+    row.taxable += discountedLineAmount - tax;
     row.tax += tax;
     gstByRate.set(rate, row);
   }
