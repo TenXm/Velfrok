@@ -13,7 +13,7 @@ export async function GET(req) {
     await rateLimit(`admin-order-archives-get:${user.id}`, 30, 60);
     const db = supabaseAdmin();
     const [{ data: archives, error: archiveError }, { data: pending, error: pendingError }] = await Promise.all([
-      db.from("order_archives").select("*").order("period_start", { ascending: false }),
+      db.from("order_archives").select("*").is("deleted_at", null).order("period_start", { ascending: false }),
       db.from("orders").select("id,order_number,customer_name,delivered_at,total_amount,order_items(*)")
         .eq("fulfillment_status", "delivered").is("archived_at", null).order("delivered_at", { ascending: true }).limit(2000),
     ]);
@@ -48,8 +48,8 @@ export async function DELETE(req) {
     if (!archive) return Response.json({ error: "Archive not found." }, { status: 404 });
     const { error: storageError } = await db.storage.from("order-archives").remove([archive.storage_path]);
     if (storageError) return Response.json({ error: "Could not delete the Excel file." }, { status: 500 });
-    const { error: deleteError } = await db.from("order_archives").delete().eq("id", id);
-    if (deleteError) return Response.json({ error: "File deleted but archive metadata could not be removed. Contact support." }, { status: 500 });
+    const { error: deleteError } = await db.from("order_archives").update({ deleted_at: new Date().toISOString() }).eq("id", id);
+    if (deleteError) return Response.json({ error: "File deleted but archive metadata could not be updated. Contact support." }, { status: 500 });
     try { await auditLog(user.email || user.id, "order.archive.delete", { id, fileName: archive.file_name }, clientIp(req)); } catch (e) { console.error("Audit logging failed:", e); }
     return Response.json({ ok: true });
   } catch (error) {
