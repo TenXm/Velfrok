@@ -596,7 +596,7 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
     return counts;
   }, [orders]);
   const orderSummaryCounts = useMemo(() => ({
-    accepted: orders.filter(o => o.order_acceptance_status === "accepted" && o.fulfillment_status !== "delivered").length,
+    accepted: orders.filter(o => o.order_acceptance_status === "accepted" && ["confirmed", "packed"].includes(o.fulfillment_status)).length,
     rejected: orders.filter(o => o.order_acceptance_status === "rejected").length,
     delivered: orders.filter(o => o.fulfillment_status === "delivered" || Boolean(o.delivered_at)).length,
     on_the_way: orders.filter(o => o.fulfillment_status === "shipped").length,
@@ -639,7 +639,7 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
       <div className="inline-actions" style={{margin:"12px 0",justifyContent:"flex-start",gap:10,flexWrap:"wrap"}}>
         <button type="button" className="secondary" aria-expanded={calendarOpen} aria-label={calendarOpen ? "Close order calendar" : "Open order calendar"} onClick={() => setCalendarOpen(open => !open)} style={{minWidth:44}}>{calendarOpen ? "✕" : "📅"}</button>
         <select aria-label="Overall order summary filter" style={{maxWidth:270}} value={orderStatusFilters[0] || "all"} onChange={e => setOrderStatusFilters(e.target.value === "all" ? [] : [e.target.value])}>
-          <option value="all">All Orders ({orders.length})</option>
+          <option value="all">All Active Orders ({orders.filter(o => o.fulfillment_status !== "delivered").length})</option>
           <option value="accepted">Accepted Orders ({orderSummaryCounts.accepted})</option>
           <option value="rejected">Rejected Orders ({orderSummaryCounts.rejected})</option>
           <option value="delivered">Delivered Orders ({orderSummaryCounts.delivered})</option>
