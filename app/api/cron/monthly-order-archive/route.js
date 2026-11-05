@@ -12,13 +12,13 @@ const columnName = index => {
   return name;
 };
 function makeWorkbook(rows) {
-  const headers = ["Order Number","Order ID","Order Date","Delivered Date","Customer Name","Mobile","Email","Billing Address","City","PIN Code","Product Name","Product ID","SKU","Quantity","Selected Options","Unit Price","Line Total","GST Rate","GST Amount","Discount","Delivery Charge","Order Total","Payment Method","Payment Status","Acceptance Status","Courier Company","AWB Number","Tracking URL","Invoice Reference"];
+  const headers = ["Order Number","Order ID","Order Date","Delivered Date","Customer Name","Mobile","Email","Billing Address","City","State","PIN Code","Product Name","Product ID","SKU","Quantity","Selected Options","Unit Price","Line Total","GST Rate","GST Amount","Subtotal","Coupon Code","Discount","Delivery Charge","Order Total","Payment Method","Payment Status","Acceptance Status","Fulfilment Status","Courier Company","AWB Number","Tracking URL","Invoice Reference"];
   const records = [headers, ...rows.map(row => [
     row.order_number, row.id, row.created_at, row.delivered_at, row.customer_name, row.mobile, row.email,
-    row.address || row.street_address, row.city, row.pin_code || row.pincode,
+    row.address || row.street_address, row.city, row.state, row.pin_code || row.pincode,
     row.product_name, row.product_id, row.sku, row.quantity, row.options ? JSON.stringify(row.options) : "",
-    row.unit_price, row.line_total, row.gst_rate, row.gst_amount, row.discount_amount, row.delivery_charge, row.total_amount,
-    row.payment_method, row.payment_status, row.order_acceptance_status, row.delivery_partner, row.awb_number,
+    row.unit_price, row.line_total, row.gst_rate, row.gst_amount, row.subtotal, row.coupon_code, row.discount_amount, row.delivery_charge, row.total_amount,
+    row.payment_method, row.payment_status, row.order_acceptance_status, row.fulfillment_status, row.delivery_partner, row.awb_number,
     row.tracking_url, row.invoice_number || row.invoice_id
   ])];
   const sheetRows = records.map((record, rowIndex) => {
