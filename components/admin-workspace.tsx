@@ -94,7 +94,8 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
   const [products, setProducts] = useState<AnyRow[]>([]);
   const [categories, setCategories] = useState<AnyRow[]>([]);
   const [options, setOptions] = useState<Option[]>([]);
-  const [coupons, setCoupons] = useState<AnyRow[]>([]);\n  const [invoiceSettings, setInvoiceSettings] = useState({ business_name: "Velfrok", phone: "", email: "", address: "", gst_number: "", gst_rate: "0", tax_label: "", tax_rate: "0", terms: "" });
+  const [coupons, setCoupons] = useState<AnyRow[]>([]);
+  const [invoiceSettings, setInvoiceSettings] = useState({ business_name: "Velfrok", phone: "", email: "", address: "", gst_number: "", gst_rate: "0", tax_label: "", tax_rate: "0", terms: "" });
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -150,7 +151,8 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
       setCategories(catalog.categories || []);
       setOptions(catalog.options || []);
       setCoupons(couponData.coupons || []);
-      setOrders(orderData.orders || []);\n      setInvoiceSettings(invoiceData.settings || invoiceSettings);
+      setOrders(orderData.orders || []);
+      setInvoiceSettings(invoiceData.settings || invoiceSettings);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not load admin data.");
     } finally { setBusy(false); }
@@ -158,7 +160,14 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
-  const saveInvoiceSettings = async (event: React.FormEvent) => {\n    event.preventDefault(); setBusy(true); setError(""); setMessage("");\n    try { const result = await api("/api/admin/invoice-settings", { method: "PUT", body: JSON.stringify(invoiceSettings) }); setInvoiceSettings(result.settings); setMessage("Invoice settings saved."); }\n    catch (e) { setError(e instanceof Error ? e.message : "Could not save invoice settings."); }\n    finally { setBusy(false); }\n  };\n\n  const addOption = async (attributeName: string, value: string) => {
+  const saveInvoiceSettings = async (event: React.FormEvent) => {
+    event.preventDefault(); setBusy(true); setError(""); setMessage("");
+    try { const result = await api("/api/admin/invoice-settings", { method: "PUT", body: JSON.stringify(invoiceSettings) }); setInvoiceSettings(result.settings); setMessage("Invoice settings saved."); }
+    catch (e) { setError(e instanceof Error ? e.message : "Could not save invoice settings."); }
+    finally { setBusy(false); }
+  };
+
+  const addOption = async (attributeName: string, value: string) => {
     try {
       const result = await api("/api/admin/catalog", { method: "POST", body: JSON.stringify({ action: "option", attributeName, value }) });
       setOptions(old => old.some(option => option.id === result.option.id) ? old : [...old, result.option]);
@@ -478,7 +487,8 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
             <CategoryPicker categories={categories} value={productForm.category_id} onChange={id => setProductForm(f => ({...f,category_id:id}))} onCreate={createCategory}/>
             <div className="field"><label>Product status</label><select value={productForm.is_active ? "active" : "inactive"} onChange={e => setProductForm(f => ({...f,is_active:e.target.value==="active"}))}><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
             <div className="field"><label>MRP (₹) *</label><input required type="number" min="0.01" step="0.01" value={productForm.mrp} onChange={e => setProductForm(f => ({...f,mrp:e.target.value}))}/></div>
-            <div className="field"><label>Selling price (₹) * — GST included</label><input required type="number" min="0.01" step="0.01" value={productForm.selling_price} onChange={e => setProductForm(f => ({...f,selling_price:e.target.value}))}/><small>Final tax-inclusive price; GST will not be added at checkout. Automatic discount: {discountPct}%</small></div>\n            <div className="field"><label>Product GST rate</label><select value={productForm.gst_rate} onChange={e => setProductForm(f => ({...f,gst_rate:e.target.value}))}><option value="0">0%</option><option value="5">5%</option><option value="10">10%</option><option value="12">12%</option><option value="18">18%</option><option value="28">28%</option></select><small>Change this product’s rate here. Past orders retain their original rate.</small></div>
+            <div className="field"><label>Selling price (₹) * — GST included</label><input required type="number" min="0.01" step="0.01" value={productForm.selling_price} onChange={e => setProductForm(f => ({...f,selling_price:e.target.value}))}/><small>Final tax-inclusive price; GST will not be added at checkout. Automatic discount: {discountPct}%</small></div>
+            <div className="field"><label>Product GST rate</label><select value={productForm.gst_rate} onChange={e => setProductForm(f => ({...f,gst_rate:e.target.value}))}><option value="0">0%</option><option value="5">5%</option><option value="10">10%</option><option value="12">12%</option><option value="18">18%</option><option value="28">28%</option></select><small>Change this product’s rate here. Past orders retain their original rate.</small></div>
             <div className="field"><label>Stock quantity *</label><input required type="number" min="0" step="1" value={productForm.quantity} onChange={e => setProductForm(f => ({...f,quantity:e.target.value}))}/></div>
             <div className="field"><label>Weight</label><input value={productForm.weight} onChange={e => setProductForm(f => ({...f,weight:e.target.value}))} placeholder="e.g. 500 g"/></div>
             <div className="field"><label>Dimensions</label><input value={productForm.dimensions} onChange={e => setProductForm(f => ({...f,dimensions:e.target.value}))} placeholder="e.g. 20 × 10 × 5 cm"/></div>
@@ -541,7 +551,8 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
         <button className="primary" disabled={busy}>{busy ? "Saving..." : "Save Invoice Settings"}</button>
       </form>
     </div>}
-\n    {tab === "coupons" && <>
+
+    {tab === "coupons" && <>
       <div className="admin-card"><div className="section-head"><h2>{editingCouponId ? "Edit coupon" : "Create coupon"}</h2>{editingCouponId && <button type="button" className="secondary" onClick={() => { setEditingCouponId(null); setCouponForm({ code: "", discount_type: "percentage", discount_value: "", min_order_value: "0", max_discount: "", expires_at: "", usage_limit: "", per_customer_limit: "", is_active: true }); }}>Cancel edit</button>}</div><form onSubmit={saveCoupon} className="product-form">
         <div className="admin-fields">
           <div className="field"><label>Coupon code *</label><input required value={couponForm.code} onChange={e => setCouponForm(f => ({...f,code:e.target.value.toUpperCase()}))} placeholder="WELCOME15"/></div>
