@@ -75,6 +75,20 @@ async function makeInvoice(order, settings) {
   const discount = Number(order.discount_amount ?? order.discount ?? 0);
   const shipping = Number(order.shipping_amount ?? order.shipping ?? 0);
   const total = Number(order.total_amount ?? order.total ?? Math.max(0, subtotal - discount + shipping));
+  // GST is extracted from tax-inclusive line prices only for the server-generated invoice.
+  const gstByRate = new Map();
+  for (const item of items) {
+    const rate = Number(item.gst_rate || 0);
+    const lineAmount = Number(item.line_total ?? (Number(item.unit_price || 0) * Number(item.quantity || 0)));
+    if (!rate || !Number.isFinite(rate) || lineAmount <= 0) continue;
+    const tax = lineAmount * rate / (100 + rate);
+    const row = gstByRate.get(rate) || { taxable: 0, tax: 0 };
+    row.taxable += lineAmount - tax;
+    row.tax += tax;
+    gstByRate.set(rate, row);
+  }
+  const includedTaxTotal = [...gstByRate.values()].reduce((sum, row) => sum + row.tax, 0);
+  const taxableTotal = [...gstByRate.values()].reduce((sum, row) => sum + row.taxable, 0);
 
   for (let pageIndex = 0; pageIndex < chunks.length; pageIndex++) {
     const page = doc.addPage([PAGE.width, PAGE.height]);
@@ -135,7 +149,8 @@ async function makeInvoice(order, settings) {
       const totalsY = rowY - 25;
       const labelX = 365, valueX = 475;
       const totalRows = [
-        ["Subtotal", money(subtotal)],
+        ["Subtotal (tax-inclusive)", money(subtotal)],
+        ...(gstByRate.size ? [["Taxable value", money(taxableTotal)], ...[...gstByRate.entries()].sort((a,b)=>a[0]-b[0]).map(([rate, row]) => [`GST included (${rate}%)`, money(row.tax)])] : []),
         ["Discount", "− " + money(discount)],
         ...(shipping ? [["Shipping", money(shipping)]] : []),
       ];
