@@ -21,6 +21,12 @@ const line = rgb(0.86, 0.87, 0.83);
 function text(value) {
   return String(value ?? "").replace(/[\r\n\t]+/g, " ").trim();
 }
+function safeText(value, font) {
+  const supported = new Set(font.getCharacterSet());
+  return Array.from(text(value)).map(char =>
+    supported.has(char.codePointAt(0)) ? char : "?"
+  ).join("");
+}
 function money(value) {
   return "Rs. " + Number(value || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
@@ -109,9 +115,9 @@ async function makeInvoice(order, settings) {
     const isLast = pageIndex === chunks.length - 1;
 
     page.drawRectangle({ x: 0, y: PAGE.height - 132, width: PAGE.width, height: 132, color: pale });
-    page.drawText(text(settings.business_name || "Velfrok").slice(0, 32), { x: left, y: PAGE.height - 58, size: 20, font: bold, color: green });
+    page.drawText(safeText(settings.business_name || "Velfrok", font).slice(0, 32), { x: left, y: PAGE.height - 58, size: 20, font: bold, color: green });
     const contactLines = [settings.phone, settings.email, settings.address, settings.gst_number ? "GSTIN: " + settings.gst_number : ""].filter(Boolean);
-    contactLines.slice(0, 4).forEach((value, index) => page.drawText(text(value).slice(0, 95), { x: left, y: PAGE.height - 74 - index * 11, size: 7, font, color: muted }));
+    contactLines.slice(0, 4).forEach((value, index) => page.drawText(safeText(value, font).slice(0, 95), { x: left, y: PAGE.height - 74 - index * 11, size: 7, font, color: muted }));
     page.drawText("INVOICE", { x: right - 105, y: PAGE.height - 52, size: 17, font: bold, color: green });
     page.drawText("Order " + orderNo, { x: right - 170, y: PAGE.height - 75, size: 9, font, color: ink });
     page.drawText("Invoice date: " + date(order.created_at), { x: left, y: PAGE.height - 91, size: 9, font, color: muted });
@@ -123,14 +129,14 @@ async function makeInvoice(order, settings) {
       page.drawText("ORDER DETAILS", { x: 325, y, size: 9, font: bold, color: green });
       y -= 20;
       let customerY = y;
-      customerY = drawWrapped(page, order.customer_name || "Customer", left, customerY, 230, bold, 11, ink, 14, 2);
-      customerY = drawWrapped(page, order.email || "", left, customerY - 2, 230, font, 8, muted, 11, 2);
-      customerY = drawWrapped(page, order.mobile || "", left, customerY - 2, 230, font, 8, muted, 11, 1);
+      customerY = drawWrapped(page, safeText(order.customer_name || "Customer", font), left, customerY, 230, bold, 11, ink, 14, 2);
+      customerY = drawWrapped(page, safeText(order.email || "", font), left, customerY - 2, 230, font, 8, muted, 11, 2);
+      customerY = drawWrapped(page, safeText(order.mobile || "", font), left, customerY - 2, 230, font, 8, muted, 11, 1);
       const address = [order.address || order.street_address, order.landmark, order.city, order.state, order.pincode || order.pin_code].filter(Boolean).join(", ");
-      drawWrapped(page, address, left, customerY - 2, 245, font, 8, muted, 11, 4);
-      page.drawText("Payment: " + text(order.payment_method || "UPI").toUpperCase(), { x: 325, y, size: 9, font, color: ink });
-      page.drawText("Payment status: " + text(order.payment_status || "—"), { x: 325, y: y - 15, size: 9, font, color: ink });
-      page.drawText("Fulfilment: " + text(order.fulfillment_status || "—"), { x: 325, y: y - 30, size: 9, font, color: ink });
+      drawWrapped(page, safeText(address, font), left, customerY - 2, 245, font, 8, muted, 11, 4);
+      page.drawText("Payment: " + safeText(order.payment_method || "UPI", font).toUpperCase(), { x: 325, y, size: 9, font, color: ink });
+      page.drawText("Payment status: " + safeText(order.payment_status || "—", font), { x: 325, y: y - 15, size: 9, font, color: ink });
+      page.drawText("Fulfilment: " + safeText(order.fulfillment_status || "—", font), { x: 325, y: y - 30, size: 9, font, color: ink });
     } else {
       page.drawText("ITEMS CONTINUED", { x: left, y: PAGE.height - 165, size: 10, font: bold, color: green });
     }
@@ -144,10 +150,10 @@ async function makeInvoice(order, settings) {
 
     let rowY = tableTop - 43;
     for (const item of pageItems) {
-      const name = text(item.product_name || "Product");
+      const name = safeText(item.product_name || "Product", font);
       page.drawText(name.slice(0, 48), { x: left + 8, y: rowY, size: 8, font, color: ink });
       const detail = [item.sku, item.color].filter(Boolean).join(" · ");
-      if (detail) page.drawText(text(detail).slice(0, 54), { x: left + 8, y: rowY - 11, size: 7, font, color: muted });
+      if (detail) page.drawText(safeText(detail, font).slice(0, 54), { x: left + 8, y: rowY - 11, size: 7, font, color: muted });
       page.drawText(String(item.quantity || 0), { x: 370, y: rowY, size: 8, font, color: ink });
       page.drawText(money(item.unit_price), { x: 410, y: rowY, size: 8, font, color: ink });
       page.drawText(money(item.line_total), { x: 490, y: rowY, size: 8, font, color: ink });
@@ -165,7 +171,7 @@ async function makeInvoice(order, settings) {
       const totalRows = [
         ["Subtotal (tax-inclusive)", money(subtotal)],
         ...(gstByRate.size ? [["Taxable value", money(taxableTotal)], ...[...gstByRate.entries()].sort((a,b)=>a[0]-b[0]).map(([rate, row]) => [`GST included (${rate}%)`, money(row.tax)])] : []),
-        ["Discount", "− " + money(discount)],
+        ["Discount", "- " + money(discount)],
         ...(shipping ? [["Shipping", money(shipping)]] : []),
       ];
       totalRows.forEach((entry, index) => {
