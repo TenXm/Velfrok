@@ -41,7 +41,7 @@ export async function POST(req) {
       else {
         const sku = clean(item.sku, 40);
         if (!sku) return responseError("Invalid product identifier.", 400);
-        requestedSkus.push({ sku, quantity });
+        requestedSkus.push({ sku, quantity, options });
       }
     }
 
