@@ -133,7 +133,7 @@ export default function CheckoutPage() {
       } else {
         localStorage.removeItem(CART_KEY);
         setItems([]);
-        setMessage(`অর্ডার ${result.order?.order_number || ""} তৈরি হয়েছে। ডেলিভারির সময় পেমেন্ট করতে হবে।`);
+        setMessage(`Order ${result.order?.order_number || ""} has been placed successfully. Please pay in cash when it is delivered.`);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "অর্ডার সম্পন্ন করা যায়নি।");
