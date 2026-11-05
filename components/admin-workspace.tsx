@@ -487,7 +487,7 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
     return matches && (stockFilter === "all" || (stockFilter === "low" && stock > 0 && stock < 10) || (stockFilter === "out" && stock === 0));
   }), [products, productSearch, stockFilter]);
   const filteredOrders = orders.filter(o =>
-    (!selectedOrderDate || localDateKey(o.created_at) === selectedOrderDate) &&
+    (!selectedOrderDate || [o.created_at,o.dispatched_at,o.delivered_at,o.rejected_at].some(value => localDateKey(value || "") === selectedOrderDate)) &&
     [o.order_number, o.customer_name, o.mobile].some(v => String(v || "").toLowerCase().includes(orderSearch.toLowerCase()))
   );
   const selectedDayOrders = selectedOrderDate ? orders.filter(o => localDateKey(o.created_at) === selectedOrderDate) : [];
