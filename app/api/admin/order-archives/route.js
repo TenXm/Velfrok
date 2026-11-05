@@ -22,7 +22,7 @@ export async function GET(req) {
       return Response.json({ error: "Could not load order archives. Apply migration 017 first." }, { status: 500 });
     }
     const withUrls = await Promise.all((archives || []).map(async archive => {
-      const { data } = await db.storage.from("order-archives").createSignedUrl(archive.storage_path, 300);
+      const { data } = await db.storage.from("order-archives").createSignedUrl(archive.storage_path, 3600);
       return { ...archive, download_url: data?.signedUrl || null };
     }));
     return Response.json({ archives: withUrls, pendingOrders: pending || [] }, { headers: { "Cache-Control": "no-store" } });
