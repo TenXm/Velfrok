@@ -6,7 +6,7 @@ create table if not exists public.product_reviews (
   rating integer not null check (rating between 1 and 5),
   title text not null check (length(trim(title)) between 3 and 120),
   body text not null check (length(trim(body)) between 10 and 3000),
-  is_approved boolean not null default true,
+  is_approved boolean not null default false,
   created_at timestamptz not null default now(),
   unique (product_id, user_id)
 );
