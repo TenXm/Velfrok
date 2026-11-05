@@ -12,7 +12,7 @@ export async function GET(req) {
     const { user, error } = await requireAdmin(req);
     if (error) return error;
     await rateLimit(`admin-orders-get:${user.id}`, 60, 60);
-    const { data, error: dbError } = await supabaseAdmin().from("orders").select("*, order_items(*)").order("created_at", { ascending: false }).limit(1000);
+    const { data, error: dbError } = await supabaseAdmin().from("orders").select("*, order_items(*)").is("archived_at", null).order("created_at", { ascending: false }).limit(1000);
     if (dbError) { console.error("Admin order lookup failed:", dbError.message); return fail("Could not load orders.", 500); }
     return Response.json({ orders: data || [] }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) { if (error instanceof Response) return error; console.error("Admin orders GET failed:", error); return fail("Server error.", 500); }
@@ -95,13 +95,13 @@ export async function PATCH(req) {
     if (!existing) return fail("Order not found.", 404);
     if (existing.fulfillment_status === fulfillmentStatus) return Response.json({ ok: true, fulfillmentStatus, unchanged: true });
     if (existing.order_acceptance_status !== "accepted") return fail("Order must be accepted before fulfillment can change.", 409);
-    if (fulfillmentStatus === "shipped" && (!existing.delivery_partner || !existing.awb_number)) return fail("Assign a delivery partner and save the AWB number before dispatching this order.", 409);
+    if (["ready_to_ship", "shipped"].includes(fulfillmentStatus) && (!existing.delivery_partner || !existing.awb_number)) return fail("Select a courier company and save the AWB number before dispatching this order.", 409);
     if (existing.payment_method === "upi" && existing.payment_status !== "accepted") return fail("UPI payment must be verified before fulfillment can change.", 409);
     if (existing.payment_method === "cod" && !["due_on_delivery","accepted"].includes(existing.payment_status)) return fail("COD payment state is invalid.", 409);
     if (NEXT_STATUS[existing.fulfillment_status] !== fulfillmentStatus) return fail("Invalid fulfillment transition. Advance one stage at a time.", 409);
 
     const fulfillmentUpdate = { fulfillment_status: fulfillmentStatus };
-    if (fulfillmentStatus === "shipped") fulfillmentUpdate.dispatched_at = new Date().toISOString();
+    if (fulfillmentStatus === "ready_to_ship") fulfillmentUpdate.dispatched_at = new Date().toISOString();
     if (fulfillmentStatus === "delivered") fulfillmentUpdate.delivered_at = new Date().toISOString();
     const { data: updated, error: updateError } = await db.from("orders").update(fulfillmentUpdate)
       .eq("id", id).eq("order_acceptance_status","accepted").eq("payment_method",existing.payment_method)
