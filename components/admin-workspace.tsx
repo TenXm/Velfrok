@@ -94,7 +94,7 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
   const [products, setProducts] = useState<AnyRow[]>([]);
   const [categories, setCategories] = useState<AnyRow[]>([]);
   const [options, setOptions] = useState<Option[]>([]);
-  const [coupons, setCoupons] = useState<AnyRow[]>([]);
+  const [coupons, setCoupons] = useState<AnyRow[]>([]);\n  const [invoiceSettings, setInvoiceSettings] = useState({ business_name: "Velfrok", phone: "", email: "", address: "", gst_number: "", gst_rate: "0", tax_label: "", tax_rate: "0", terms: "" });
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -143,14 +143,14 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
   const loadAll = useCallback(async () => {
     setBusy(true); setError("");
     try {
-      const [catalog, couponData, orderData] = await Promise.all([
-        api("/api/admin/catalog"), api("/api/admin/coupons"), api("/api/admin/orders"),
+      const [catalog, couponData, orderData, invoiceData] = await Promise.all([
+        api("/api/admin/catalog"), api("/api/admin/coupons"), api("/api/admin/orders"), api("/api/admin/invoice-settings"),
       ]);
       setProducts(catalog.products || []);
       setCategories(catalog.categories || []);
       setOptions(catalog.options || []);
       setCoupons(couponData.coupons || []);
-      setOrders(orderData.orders || []);
+      setOrders(orderData.orders || []);\n      setInvoiceSettings(invoiceData.settings || invoiceSettings);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not load admin data.");
     } finally { setBusy(false); }
@@ -158,7 +158,7 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
-  const addOption = async (attributeName: string, value: string) => {
+  const saveInvoiceSettings = async (event: React.FormEvent) => {\n    event.preventDefault(); setBusy(true); setError(""); setMessage("");\n    try { const result = await api("/api/admin/invoice-settings", { method: "PUT", body: JSON.stringify(invoiceSettings) }); setInvoiceSettings(result.settings); setMessage("Invoice settings saved."); }\n    catch (e) { setError(e instanceof Error ? e.message : "Could not save invoice settings."); }\n    finally { setBusy(false); }\n  };\n\n  const addOption = async (attributeName: string, value: string) => {
     try {
       const result = await api("/api/admin/catalog", { method: "POST", body: JSON.stringify({ action: "option", attributeName, value }) });
       setOptions(old => old.some(option => option.id === result.option.id) ? old : [...old, result.option]);
@@ -422,7 +422,7 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
   return <section className="admin-workspace">
     <style>{styles}</style>
     <nav className="admin-tabs">
-      {[["overview","Overview"],["orders","Orders"],["products","Products"],["inventory","Inventory"],["coupons","Coupons"]].map(([id,label]) => <button key={id} className={tab === id ? "active" : ""} onClick={() => setTab(id)}>{label}</button>)}
+      {[["overview","Overview"],["orders","Orders"],["products","Products"],["inventory","Inventory"],["coupons","Coupons"],["invoice-settings","Invoice Settings"]].map(([id,label]) => <button key={id} className={tab === id ? "active" : ""} onClick={() => setTab(id)}>{label}</button>)}
       <button className="secondary" onClick={loadAll} disabled={busy}>↻ Refresh</button>
     </nav>
     {error && <div className="notice error">{error}</div>}
@@ -523,7 +523,25 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
       <small>Bulk changes run through one database transaction. A change that would make any selected stock negative is rejected in full.</small>
     </div>}
 
-    {tab === "coupons" && <>
+    {tab === "invoice-settings" && <div className="admin-card">
+      <h2>Invoice Settings</h2>
+      <p>এই তথ্য ZIP এবং Combined PDF ইনভয়েসে ব্যবহার হবে। Tax rate 0 রাখলে সংশ্লিষ্ট tax যোগ হবে না।</p>
+      <form className="product-form" onSubmit={saveInvoiceSettings}>
+        <div className="admin-fields">
+          <div className="field"><label>Business / Display name</label><input value={invoiceSettings.business_name} onChange={e => setInvoiceSettings(s => ({...s,business_name:e.target.value}))} /></div>
+          <div className="field"><label>Mobile number</label><input value={invoiceSettings.phone} onChange={e => setInvoiceSettings(s => ({...s,phone:e.target.value}))} /></div>
+          <div className="field"><label>Gmail / Email</label><input type="email" value={invoiceSettings.email} onChange={e => setInvoiceSettings(s => ({...s,email:e.target.value}))} /></div>
+          <div className="field"><label>GSTIN</label><input value={invoiceSettings.gst_number} onChange={e => setInvoiceSettings(s => ({...s,gst_number:e.target.value}))} /></div>
+          <div className="field"><label>GST rate (%)</label><input type="number" min="0" max="100" step="0.01" value={invoiceSettings.gst_rate} onChange={e => setInvoiceSettings(s => ({...s,gst_rate:e.target.value}))} /></div>
+          <div className="field"><label>Other tax name</label><input placeholder="e.g. Service Tax" value={invoiceSettings.tax_label} onChange={e => setInvoiceSettings(s => ({...s,tax_label:e.target.value}))} /></div>
+          <div className="field"><label>Other tax rate (%)</label><input type="number" min="0" max="100" step="0.01" value={invoiceSettings.tax_rate} onChange={e => setInvoiceSettings(s => ({...s,tax_rate:e.target.value}))} /></div>
+        </div>
+        <div className="field"><label>Business address</label><textarea value={invoiceSettings.address} onChange={e => setInvoiceSettings(s => ({...s,address:e.target.value}))} /></div>
+        <div className="field"><label>Terms & Conditions</label><textarea value={invoiceSettings.terms} onChange={e => setInvoiceSettings(s => ({...s,terms:e.target.value}))} placeholder="Invoice footer terms..." /></div>
+        <button className="primary" disabled={busy}>{busy ? "Saving..." : "Save Invoice Settings"}</button>
+      </form>
+    </div>}
+\n    {tab === "coupons" && <>
       <div className="admin-card"><div className="section-head"><h2>{editingCouponId ? "Edit coupon" : "Create coupon"}</h2>{editingCouponId && <button type="button" className="secondary" onClick={() => { setEditingCouponId(null); setCouponForm({ code: "", discount_type: "percentage", discount_value: "", min_order_value: "0", max_discount: "", expires_at: "", usage_limit: "", per_customer_limit: "", is_active: true }); }}>Cancel edit</button>}</div><form onSubmit={saveCoupon} className="product-form">
         <div className="admin-fields">
           <div className="field"><label>Coupon code *</label><input required value={couponForm.code} onChange={e => setCouponForm(f => ({...f,code:e.target.value.toUpperCase()}))} placeholder="WELCOME15"/></div>
