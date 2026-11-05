@@ -2,7 +2,16 @@
 begin;
 
 alter table public.orders
-  add column if not exists archived_at timestamptz;
+  add column if not exists archived_at timestamptz,
+  add column if not exists rejected_at timestamptz;
+
+update public.orders
+set rejected_at = created_at
+where order_acceptance_status = 'rejected' and rejected_at is null;
+
+create index if not exists orders_rejected_retention_idx
+  on public.orders (rejected_at)
+  where order_acceptance_status = 'rejected' and rejected_at is not null;
 
 create index if not exists orders_monthly_archive_lookup_idx
   on public.orders (delivered_at)
