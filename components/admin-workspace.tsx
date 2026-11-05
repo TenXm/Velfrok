@@ -6,7 +6,29 @@ import { supabaseAdminBrowser } from "@/lib/supabase-admin-browser";
 type AnyRow = Record<string, any>;
 type Props = { accessToken: string; initialOrders?: AnyRow[] };
 type Option = { id: string; attribute_name: string; attribute_slug: string; value: string; normalized_value: string };
-const DELIVERY_PARTNERS = ["Delhivery", "Blue Dart", "DTDC", "India Post", "Ekart Logistics", "Ecom Express", "Xpressbees", "Shadowfax", "Amazon Shipping", "The Professional Couriers", "Gati", "FedEx", "UPS", "DHL", "Aramex", "Shiprocket", "Other"];
+const DELIVERY_PARTNERS = [
+  { name: "Amazon Shipping", url: "https://shipping.amazon.in/" },
+  { name: "Aramex", url: "https://www.aramex.com/express/track.aspx" },
+  { name: "Blitz", url: "https://www.blitz.delivery/" },
+  { name: "Blue Dart Express", url: "https://www.bluedart.com/tracking" },
+  { name: "Bombino Express", url: "https://www.bombinoexp.com/" },
+  { name: "Borzo (WeFast)", url: "https://borzodelivery.com/in" },
+  { name: "Delhivery", url: "https://www.delhivery.com/tracking" },
+  { name: "DHL Express", url: "https://www.dhl.com/en/express/tracking.html" },
+  { name: "Dunzo", url: "https://www.dunzo.com/" },
+  { name: "Ekart Logistics", url: "https://ekartlogistics.com/" },
+  { name: "FedEx", url: "https://www.fedex.com/en-in/tracking.html" },
+  { name: "India Post (Speed Post)", url: "https://www.indiapost.gov.in/_layouts/15/dop.tracking.ui/trackconsignment.aspx" },
+  { name: "Pidge", url: "https://www.pidge.in/" },
+  { name: "Shadowfax", url: "https://www.shadowfax.in/" },
+  { name: "Shree Maruti Courier", url: "https://www.shreemaruticourier.com/" },
+  { name: "Shree Tirupati Courier", url: "https://www.shreetirupaticourier.net/" },
+  { name: "Smartr Logistics", url: "https://smartr.in/" },
+  { name: "The Professional Couriers", url: "https://www.tpcindia.com/" },
+  { name: "Trackon Couriers", url: "https://trackon.in/" },
+  { name: "UPS (United Parcel Service)", url: "https://www.ups.com/track" },
+  { name: "XpressBees", url: "https://www.xpressbees.com/track" },
+];
 const localDateKey = (value: string) => { const date = new Date(value); return Number.isNaN(date.getTime()) ? "" : [date.getFullYear(), String(date.getMonth()+1).padStart(2,"0"), String(date.getDate()).padStart(2,"0")].join("-"); };
 const calendarDateKey = (date: Date) => [date.getFullYear(), String(date.getMonth()+1).padStart(2,"0"), String(date.getDate()).padStart(2,"0")].join("-");
 
@@ -144,6 +166,8 @@ function CategoryPicker({ categories, value, onChange, onCreate }: {
 export default function AdminWorkspace({ accessToken, initialOrders = [] }: Props) {
   const [tab, setTab] = useState("overview");
   const [orders, setOrders] = useState<AnyRow[]>(initialOrders);
+  const [orderArchives, setOrderArchives] = useState<AnyRow[]>([]);
+  const [pendingArchiveOrders, setPendingArchiveOrders] = useState<AnyRow[]>([]);
   const [products, setProducts] = useState<AnyRow[]>([]);
   const [categories, setCategories] = useState<AnyRow[]>([]);
   const [options, setOptions] = useState<Option[]>([]);
@@ -217,7 +241,29 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
     } finally { setBusy(false); }
   }, [api]);
 
+  const loadArchives = useCallback(async () => {
+    try {
+      const result = await api("/api/admin/order-archives");
+      setOrderArchives(result.archives || []);
+      setPendingArchiveOrders(result.pendingOrders || []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not load Order Archive. Apply the archive migration first.");
+    }
+  }, [api]);
+
+  const deleteOrderArchive = async (archive: AnyRow) => {
+    if (!window.confirm(`Permanently delete ${archive.file_name}? This deletes the archived Excel file, not the original order history.`)) return;
+    setBusy(true); setError(""); setMessage("");
+    try {
+      await api("/api/admin/order-archives", { method: "DELETE", body: JSON.stringify({ id: archive.id }) });
+      setMessage("Archived Excel file deleted.");
+      await loadArchives();
+    } catch (e) { setError(e instanceof Error ? e.message : "Could not delete archive file."); }
+    finally { setBusy(false); }
+  };
+
   useEffect(() => { loadAll(); }, [loadAll]);
+  useEffect(() => { if (tab === "order-archive") loadArchives(); }, [tab, loadArchives]);
 
   const saveInvoiceSettings = async (event: React.FormEvent) => {
     event.preventDefault(); setBusy(true); setError(""); setMessage("");
@@ -429,8 +475,9 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
     const body = field === "payment" ? { orderId: order.id, paymentStatus: edit.payment } : { orderId: order.id, fulfillmentStatus: edit.fulfillment };
     setBusy(true); setError(""); setMessage("");
     try {
+      if (field === "fulfillment" && edit.fulfillment === "delivered" && !window.confirm(`Are you sure you want to mark order ${order.order_number || order.id.slice(0, 8)} as Delivered?`)) return;
       await api("/api/admin/orders", { method: "PATCH", body: JSON.stringify(body) });
-      setMessage("Order updated successfully.");
+      setMessage(field === "fulfillment" && edit.fulfillment === "delivered" ? "Order marked Delivered. It will be included in the monthly archive." : "Order updated successfully.");
       await loadAll();
     } catch (e) { setError(e instanceof Error ? e.message : "Could not update order."); }
     finally { setBusy(false); }
@@ -494,6 +541,8 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
     const status = acceptance === "rejected" ? "rejected"
       : String(o.payment_status || "").toLowerCase() === "rejected" ? "denied"
       : fulfillment === "delivered" || Boolean(o.delivered_at) ? "delivered"
+      : fulfillment === "shipped" ? "on_the_way"
+      : fulfillment === "ready_to_ship" ? "dispatched"
       : acceptance === "pending" ? "pending"
       : acceptance === "accepted" ? "accepted" : "";
     const matchesStatus = orderStatusFilters.length === 0 || orderStatusFilters.includes(status);
@@ -529,6 +578,12 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
     });
     return counts;
   }, [orders]);
+  const orderSummaryCounts = useMemo(() => ({
+    accepted: orders.filter(o => o.order_acceptance_status === "accepted" && o.fulfillment_status !== "delivered").length,
+    rejected: orders.filter(o => o.order_acceptance_status === "rejected").length,
+    delivered: orders.filter(o => o.fulfillment_status === "delivered" || Boolean(o.delivered_at)).length,
+    on_the_way: orders.filter(o => o.fulfillment_status === "shipped").length,
+  }), [orders]);
   const pendingPayments = orders.filter(o => ["pending_utr", "pending_verification"].includes(o.payment_status)).length;
   const revenue = orders.filter(o => o.payment_status === "accepted").reduce((sum,o) => sum + Number(o.total_amount || 0), 0);
   const lowStock = products.filter(p => Number(p.quantity) < 10).length;
@@ -542,7 +597,7 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
   return <section className="admin-workspace">
     <style>{styles}</style>
     <nav className="admin-tabs">
-      {[["overview","Overview"],["orders","Orders"],["products","Products"],["inventory","Inventory"],["coupons","Coupons"],["invoice-settings","Invoice Settings"]].map(([id,label]) => <button key={id} className={tab === id ? "active" : ""} onClick={() => setTab(id)}>{label}</button>)}
+      {[["overview","Overview"],["orders","Orders"],["order-archive","Order Archive"],["products","Products"],["inventory","Inventory"],["coupons","Coupons"],["invoice-settings","Invoice Settings"]].map(([id,label]) => <button key={id} className={tab === id ? "active" : ""} onClick={() => setTab(id)}>{label}</button>)}
       <button className="secondary" onClick={loadAll} disabled={busy}>↻ Refresh</button>
     </nav>
     {error && <div className="notice error">{error}</div>}
@@ -565,11 +620,17 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
     {tab === "orders" && <div className="admin-card">
       <div className="section-head"><h2>Order management</h2><div className="inline-actions"><input style={{width:220}} value={orderSearch} onChange={e => setOrderSearch(e.target.value)} placeholder="Search order / customer"/><button className="secondary" onClick={() => downloadCsv(filteredOrders)}>Export CSV</button></div></div>
       <div className="inline-actions" style={{margin:"12px 0",justifyContent:"flex-start",gap:10,flexWrap:"wrap"}}>
-        <label style={{margin:0,fontWeight:600}}>Filter orders</label>
-        <select aria-label="Filter orders by status" style={{maxWidth:210}} value={orderStatusFilters[0] || "all"} onChange={e => setOrderStatusFilters(e.target.value === "all" ? [] : [e.target.value])}>
-          <option value="all">All Orders</option><option value="accepted">Accepted Order</option><option value="denied">Denied Order</option><option value="rejected">Rejected Order</option><option value="delivered">Delivered Order</option><option value="pending">Pending Order</option>
-        </select>
         <button type="button" className="secondary" aria-expanded={calendarOpen} aria-label={calendarOpen ? "Close order calendar" : "Open order calendar"} onClick={() => setCalendarOpen(open => !open)} style={{minWidth:44}}>{calendarOpen ? "✕" : "📅"}</button>
+        <select aria-label="Overall order summary filter" style={{maxWidth:270}} value={orderStatusFilters[0] || "all"} onChange={e => setOrderStatusFilters(e.target.value === "all" ? [] : [e.target.value])}>
+          <option value="all">All Orders ({orders.length})</option>
+          <option value="accepted">Accepted Orders ({orderSummaryCounts.accepted})</option>
+          <option value="rejected">Rejected Orders ({orderSummaryCounts.rejected})</option>
+          <option value="delivered">Delivered Orders ({orderSummaryCounts.delivered})</option>
+          <option value="on_the_way">On the Way ({orderSummaryCounts.on_the_way})</option>
+          <option value="dispatched">Order Dispatched</option>
+          <option value="denied">Denied Orders</option>
+          <option value="pending">Pending Orders</option>
+        </select>
         {selectedOrderDate && <span className="muted-text">Date: {new Date(selectedOrderDate+"T00:00:00").toLocaleDateString("en-IN")}</span>}
       </div>
       {calendarOpen && <div className="admin-card" style={{marginBottom:14}}>
@@ -599,26 +660,37 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
           <td><strong>{o.order_number || o.id.slice(0,8)}</strong><br/>{o.customer_name}<br/><span className="muted-text">{o.mobile} · {o.city} · {o.pin_code || o.pincode}</span></td>
           <td>{(o.order_items || []).map((it: AnyRow) => <div key={it.id}>{it.product_name} × {it.quantity}<br/><span className="muted-text">{it.sku}</span></div>)}</td>
           <td><strong>{o.payment_method?.toUpperCase() || "UPI"} · {o.payment_status}</strong><br/><span className="muted-text">Acceptance: {o.order_acceptance_status || "pending"} · UTR: {o.utr_number || "—"}</span>{o.payment_method === "cod" ? <div className="inline-actions" style={{marginTop:6}}>{o.order_acceptance_status === "pending" && <><button className="primary" disabled={busy} onClick={() => runCodAction(o,"accept_cod")}>Accept COD</button></>}{o.fulfillment_status === "delivered" && o.payment_status === "due_on_delivery" && <button className="primary" disabled={busy} onClick={() => runCodAction(o,"collect_cod")}>Record cash received</button>}</div> : <><select value={edit.payment} onChange={e => setOrderEdits(old => ({...old,[o.id]:{...edit,payment:e.target.value}}))}><option value="accepted">Accept payment</option><option value="rejected">Reject payment</option><option value="pending_utr" disabled>Pending UTR (read only)</option><option value="pending_verification" disabled>Pending verification (read only)</option></select><button className="primary" style={{marginTop:6}} disabled={busy || !["accepted","rejected"].includes(edit.payment) || edit.payment === o.payment_status} onClick={() => updateOrder(o,"payment")}>Submit payment</button></>}{o.order_acceptance_status === "pending" && <button className="danger" style={{marginTop:6}} disabled={busy} onClick={() => runCodAction(o,"reject_order")}>Reject order</button>}</td>
-          <td><strong>{o.fulfillment_status}</strong><select value={edit.fulfillment} onChange={e => setOrderEdits(old => ({...old,[o.id]:{...edit,fulfillment:e.target.value}}))}><option value={o.fulfillment_status}>{o.fulfillment_status}</option>{next !== o.fulfillment_status && <option value={next}>{next}</option>}</select><button className="primary" style={{marginTop:6}} disabled={busy || edit.fulfillment === o.fulfillment_status || o.order_acceptance_status !== "accepted" || (o.payment_method !== "cod" && o.payment_status !== "accepted")} onClick={() => updateOrder(o,"fulfillment")}>Submit status</button>
+          <td><strong>{{confirmed:"Order Confirmed",packed:"Order Packed",ready_to_ship:"Order Dispatched",shipped:"On the Way",delivered:"Delivered"}[o.fulfillment_status] || o.fulfillment_status}</strong><select value={edit.fulfillment} onChange={e => setOrderEdits(old => ({...old,[o.id]:{...edit,fulfillment:e.target.value}}))}><option value={o.fulfillment_status}>{{confirmed:"Order Confirmed",packed:"Order Packed",ready_to_ship:"Order Dispatched",shipped:"On the Way",delivered:"Delivered"}[o.fulfillment_status] || o.fulfillment_status}</option>{next !== o.fulfillment_status && <option value={next}>{{confirmed:"Order Confirmed",packed:"Order Packed",ready_to_ship:"Order Dispatched",shipped:"On the Way",delivered:"Delivered"}[next] || next}</option>}</select><button className="primary" style={{marginTop:6}} disabled={busy || edit.fulfillment === o.fulfillment_status || o.order_acceptance_status !== "accepted" || (o.payment_method !== "cod" && o.payment_status !== "accepted")} onClick={() => updateOrder(o,"fulfillment")}>Submit status</button>
             {o.order_acceptance_status === "accepted" && ["packed","ready_to_ship","shipped"].includes(o.fulfillment_status) && <div style={{marginTop:10,minWidth:190}}>
-              <label>Delivery partner</label><select value={(deliveryEdits[o.id]?.partner ?? o.delivery_partner) || ""} onChange={e => setDeliveryEdits(old => ({...old,[o.id]:{partner:e.target.value,awb:old[o.id]?.awb ?? o.awb_number ?? "",trackingUrl:old[o.id]?.trackingUrl ?? o.tracking_url ?? ""}}))}><option value="">Select courier</option>{DELIVERY_PARTNERS.map(name => <option key={name} value={name}>{name}</option>)}</select>
-              <label style={{marginTop:5}}>AWB / Tracking number</label><input value={(deliveryEdits[o.id]?.awb ?? o.awb_number) || ""} onChange={e => setDeliveryEdits(old => ({...old,[o.id]:{partner:old[o.id]?.partner ?? o.delivery_partner ?? "",awb:e.target.value,trackingUrl:old[o.id]?.trackingUrl ?? o.tracking_url ?? ""}}))} placeholder="Enter AWB number"/>
-              <button className="secondary" type="button" style={{marginTop:5}} onClick={() => setScannerOrderId(o.id)}>▣ Scan AWB with camera</button>
-              {scannerOrderId === o.id && <AwbCameraScanner onScan={value => {
-                const raw=String(value).trim(); let detectedPartner=""; let detectedTrackingUrl=""; let awb=raw;
-                try { const url=new URL(raw); const host=url.hostname.toLowerCase().replace(/^www\\./,""); const carriers: [string,string[]][] = [["Delhivery",["delhivery.com"]],["Blue Dart",["bluedart.com"]],["DTDC",["dtdc.com"]],["India Post",["indiapost.gov.in","indiapost.nic.in"]],["Ekart Logistics",["ekartlogistics.com"]],["Ecom Express",["ecomexpress.in"]],["Xpressbees",["xpressbees.com"]],["Shadowfax",["shadowfax.in"]],["FedEx",["fedex.com"]],["UPS",["ups.com"]],["DHL",["dhl.com"]],["Aramex",["aramex.com"]],["Gati",["gati.com"]]]; const match=carriers.find(([,domains])=>domains.some(domain=>host===domain||host.endsWith("."+domain))); if(match) detectedPartner=match[0]; const found=["awb","awbno","tracking","trackingnumber","waybill","id"].map(key=>url.searchParams.get(key)).find(Boolean); awb=found||url.pathname.split("/").filter(Boolean).pop()||raw; detectedTrackingUrl=url.toString(); } catch { /* Plain barcode does not identify its carrier. */ }
-                setDeliveryEdits(old=>({...old,[o.id]:{partner:detectedPartner||old[o.id]?.partner||o.delivery_partner||"",awb,trackingUrl:detectedTrackingUrl||old[o.id]?.trackingUrl||o.tracking_url||""}})); setScannerOrderId(null);
-                setMessage(detectedPartner ? "QR identified "+detectedPartner+"; verify details and save." : "AWB scanned: "+awb+". Courier cannot be identified from this barcode; select it manually.");
-              }} onClose={() => setScannerOrderId(null)}/>}
-              <label style={{marginTop:5}}>Tracking URL (optional)</label><input value={(deliveryEdits[o.id]?.trackingUrl ?? o.tracking_url) || ""} onChange={e => setDeliveryEdits(old => ({...old,[o.id]:{partner:old[o.id]?.partner ?? o.delivery_partner ?? "",awb:old[o.id]?.awb ?? o.awb_number ?? "",trackingUrl:e.target.value}}))} placeholder="https://..."/>
-              <button className="secondary" style={{marginTop:6}} disabled={busy} onClick={() => saveDelivery(o)}>Save courier / AWB</button>
-              {o.awb_number && <p className="muted-text" style={{marginTop:4}}>{o.delivery_partner} · {o.awb_number}{o.tracking_url && <> · <a href={o.tracking_url} target="_blank" rel="noreferrer">Track parcel</a></>}</p>}
+              <label>Courier Company</label><select value={(deliveryEdits[o.id]?.partner ?? o.delivery_partner) || ""} onChange={e => { const selected = DELIVERY_PARTNERS.find(item => item.name === e.target.value); setDeliveryEdits(old => ({...old,[o.id]:{partner:e.target.value,awb:old[o.id]?.awb ?? o.awb_number ?? "",trackingUrl:selected?.url || ""}})); }}><option value="">Select Courier Company</option>{DELIVERY_PARTNERS.map(item => <option key={item.name} value={item.name}>{item.name}</option>)}</select>
+              {(deliveryEdits[o.id]?.partner || o.delivery_partner) && <>
+                <label style={{marginTop:5}}>AWB Number</label><input value={(deliveryEdits[o.id]?.awb ?? o.awb_number) || ""} onChange={e => setDeliveryEdits(old => ({...old,[o.id]:{partner:old[o.id]?.partner ?? o.delivery_partner ?? "",awb:e.target.value,trackingUrl:old[o.id]?.trackingUrl ?? o.tracking_url ?? ""}}))} placeholder="Enter AWB number"/>
+                <button className="secondary" type="button" style={{marginTop:5}} onClick={() => setScannerOrderId(o.id)}>▣ Scan AWB</button>
+                {scannerOrderId === o.id && <AwbCameraScanner onScan={value => {
+                  const awb = String(value).trim();
+                  setDeliveryEdits(old => ({...old,[o.id]:{partner:old[o.id]?.partner ?? o.delivery_partner ?? "",awb,trackingUrl:old[o.id]?.trackingUrl ?? o.tracking_url ?? ""}}));
+                  setScannerOrderId(null);
+                  setMessage("AWB scanned. Save it to attach it to this order.");
+                }} onClose={() => setScannerOrderId(null)}/>}
+                <button className="secondary" style={{marginTop:6}} disabled={busy || !(deliveryEdits[o.id]?.awb ?? o.awb_number)} onClick={() => saveDelivery(o)}>Save AWB</button>
+                {o.awb_number && <p className="muted-text" style={{marginTop:4}}>{o.delivery_partner} · {o.awb_number}{o.tracking_url && <> · <a href={o.tracking_url} target="_blank" rel="noreferrer">Track parcel</a></>}</p>}
+              </>}
             </div>}
           </td>
           <td>{money(o.total_amount)}</td>
           <td>{dateText(o.created_at)}<br/><span className="muted-text">{o.address || o.street_address || ""}</span></td>
         </tr>;
       })}</tbody></table></div>}
+    </div>}
+
+
+    {tab === "order-archive" && <div className="admin-card">
+      <div className="section-head"><h2>Order Archive</h2><button className="secondary" onClick={loadArchives}>↻ Refresh archive</button></div>
+      <p>Delivered orders remain here until the next monthly Excel report is successfully created. The monthly file is generated on the first day of the following month.</p>
+      <h3>Delivered orders awaiting monthly archive ({pendingArchiveOrders.length})</h3>
+      {pendingArchiveOrders.length === 0 ? <p>No delivered orders are waiting for the monthly report.</p> : <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>Order</th><th>Customer</th><th>Delivered</th><th>Amount</th></tr></thead><tbody>{pendingArchiveOrders.map(order => <tr key={order.id}><td>{order.order_number || order.id.slice(0,8)}</td><td>{order.customer_name}</td><td>{dateText(order.delivered_at)}</td><td>{money(order.total_amount)}</td></tr>)}</tbody></table></div>}
+      <h3>Monthly Excel files ({orderArchives.length})</h3>
+      {orderArchives.length === 0 ? <p>No monthly Excel files have been created yet.</p> : <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>Report</th><th>Period</th><th>Orders</th><th>Created</th><th>Actions</th></tr></thead><tbody>{orderArchives.map(archive => <tr key={archive.id}><td><strong>{archive.file_name}</strong></td><td>{archive.period_start} – {archive.period_end}</td><td>{archive.order_count}</td><td>{dateText(archive.generated_at)}</td><td><div className="inline-actions">{archive.download_url && <a className="secondary" href={archive.download_url} target="_blank" rel="noreferrer">Download Excel</a>}<button className="danger" onClick={() => deleteOrderArchive(archive)}>Delete file</button></div></td></tr>)}</tbody></table></div>}
     </div>}
 
     {tab === "products" && <>
