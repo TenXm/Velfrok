@@ -123,7 +123,7 @@ export default function CheckoutPage() {
           email,
           paymentMethod,
           coupon: appliedCoupon?.couponCode || null,
-          items: items.map((item) => ({ product_id: item.productId, quantity: item.quantity })),
+          items: items.map((item) => ({ product_id: item.productId, quantity: item.quantity, options: item.options || {} })),
         }),
       });
       const result = await response.json();
