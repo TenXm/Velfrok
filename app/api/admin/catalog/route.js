@@ -139,13 +139,15 @@ function normalizeProduct(input) {
   const categoryId = input.category_id || null;
   const mrp = Number(input.mrp);
   const sellingPrice = Number(input.selling_price);
-  const quantity = Number(input.quantity);\n  const gstRate = Number(input.gst_rate ?? 0);
+  const quantity = Number(input.quantity);
+  const gstRate = Number(input.gst_rate ?? 0);
   const colours = Array.isArray(input.colours) ? [...new Set(input.colours.map(v => text(v, 40)).filter(Boolean))].slice(0, 30) : [];
   const images = Array.isArray(input.images) ? input.images.map(v => text(v, 1000)).filter(v => /^https?:\/\//i.test(v)).slice(0, 12) : [];
   const attributes = input.attributes && typeof input.attributes === "object" && !Array.isArray(input.attributes) ? input.attributes : {};
   if (!name || !sku || !/^[A-Z0-9_-]{2,60}$/.test(sku)) return { error: "Enter a product name and valid SKU (letters, numbers, hyphens or underscores)." };
   if (!Number.isFinite(mrp) || !Number.isFinite(sellingPrice) || mrp <= 0 || sellingPrice <= 0 || sellingPrice > mrp) return { error: "Selling price must be positive and cannot exceed MRP." };
-  if (!Number.isInteger(quantity) || quantity < 0 || quantity > 1000000) return { error: "Enter a valid stock quantity." };\n  if (![0, 5, 10, 12, 18, 28].includes(gstRate)) return { error: "Choose a supported GST rate." };
+  if (!Number.isInteger(quantity) || quantity < 0 || quantity > 1000000) return { error: "Enter a valid stock quantity." };
+  if (![0, 5, 10, 12, 18, 28].includes(gstRate)) return { error: "Choose a supported GST rate." };
   if (categoryId && !UUID.test(categoryId)) return { error: "Invalid category." };
   const slug = slugify(text(input.slug, 160) || name);
   if (!slug) return { error: "Enter a valid product name." };
