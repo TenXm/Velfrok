@@ -8,6 +8,7 @@ type Props = { accessToken: string; initialOrders?: AnyRow[] };
 type Option = { id: string; attribute_name: string; attribute_slug: string; value: string; normalized_value: string };
 const DELIVERY_PARTNERS = ["Delhivery", "Blue Dart", "DTDC", "India Post", "Ekart Logistics", "Ecom Express", "Xpressbees", "Shadowfax", "Amazon Shipping", "The Professional Couriers", "Gati", "FedEx", "UPS", "DHL", "Aramex", "Shiprocket", "Other"];
 const localDateKey = (value: string) => { const date = new Date(value); return Number.isNaN(date.getTime()) ? "" : [date.getFullYear(), String(date.getMonth()+1).padStart(2,"0"), String(date.getDate()).padStart(2,"0")].join("-"); };
+const calendarDateKey = (date: Date) => [date.getFullYear(), String(date.getMonth()+1).padStart(2,"0"), String(date.getDate()).padStart(2,"0")].join("-");
 
 const money = (value: unknown) => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(Number(value || 0));
 const dateText = (value: string) => value ? new Date(value).toLocaleString("en-IN") : "—";
@@ -154,6 +155,7 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
   const [productSearch, setProductSearch] = useState("");
   const [orderSearch, setOrderSearch] = useState("");
   const [selectedOrderDate, setSelectedOrderDate] = useState("");
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date());
   const [deliveryEdits, setDeliveryEdits] = useState<Record<string, { partner: string; awb: string; trackingUrl: string }>>({});
   const [scannerOrderId, setScannerOrderId] = useState<string | null>(null);
   const [stockFilter, setStockFilter] = useState("all");
@@ -496,6 +498,26 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
       : event === "rejected"
         ? localDateKey(o.rejected_at || "") === selectedOrderDate
         : false).length;
+  const calendarDays = useMemo(() => {
+    const first = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1);
+    const start = new Date(first.getFullYear(), first.getMonth(), 1 - first.getDay());
+    return Array.from({ length: 42 }, (_, index) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + index));
+  }, [calendarMonth]);
+  const calendarCounts = useMemo(() => {
+    const counts: Record<string, { orders: number; dispatched: number; delivered: number; rejected: number }> = {};
+    const add = (key: string, field: "orders" | "dispatched" | "delivered" | "rejected") => {
+      if (!key) return;
+      counts[key] ||= { orders: 0, dispatched: 0, delivered: 0, rejected: 0 };
+      counts[key][field] += 1;
+    };
+    orders.forEach(order => {
+      add(localDateKey(order.created_at), "orders");
+      add(localDateKey(order.dispatched_at || ""), "dispatched");
+      add(localDateKey(order.delivered_at || ""), "delivered");
+      add(localDateKey(order.rejected_at || ""), "rejected");
+    });
+    return counts;
+  }, [orders]);
   const pendingPayments = orders.filter(o => ["pending_utr", "pending_verification"].includes(o.payment_status)).length;
   const revenue = orders.filter(o => o.payment_status === "accepted").reduce((sum,o) => sum + Number(o.total_amount || 0), 0);
   const lowStock = products.filter(p => Number(p.quantity) < 10).length;
@@ -532,12 +554,32 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
     {tab === "orders" && <div className="admin-card">
       <div className="section-head"><h2>Order management</h2><div className="inline-actions"><input style={{width:220}} value={orderSearch} onChange={e => setOrderSearch(e.target.value)} placeholder="Search order / customer"/><button className="secondary" onClick={() => downloadCsv(filteredOrders)}>Export CSV</button></div></div>
       <div className="admin-card" style={{marginBottom:14}}>
-        <div className="inline-actions" style={{alignItems:"end",justifyContent:"space-between"}}>
-          <div className="field" style={{maxWidth:260,margin:0}}><label>📅 View orders by date</label><input type="date" value={selectedOrderDate} onChange={e => setSelectedOrderDate(e.target.value)}/></div>
+        <div className="section-head"><h3>📅 Order calendar</h3><div className="inline-actions"><button className="secondary" onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(),calendarMonth.getMonth()-1,1))}>‹</button><strong>{calendarMonth.toLocaleDateString("en-IN",{month:"long",year:"numeric"})}</strong><button className="secondary" onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(),calendarMonth.getMonth()+1,1))}>›</button></div></div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(7,minmax(0,1fr))",gap:5,textAlign:"center"}}>
+          {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(day => <small key={day} className="muted-text" style={{padding:5}}>{day}</small>)}
+          {calendarDays.map(date => {
+            const key = calendarDateKey(date);
+            const counts = calendarCounts[key] || {orders:0,dispatched:0,delivered:0,rejected:0};
+            const inMonth = date.getMonth() === calendarMonth.getMonth();
+            const selected = selectedOrderDate === key;
+            return <button key={key} type="button" className="secondary" onClick={() => setSelectedOrderDate(key)} style={{minWidth:0,minHeight:54,padding:"5px 2px",opacity:inMonth?1:.38,border:selected?"2px solid #6b55c5":undefined,background:selected?"#eee9ff":undefined,color:selected?"#33206f":undefined}}>
+              <strong>{date.getDate()}</strong>
+              {counts.orders+counts.dispatched+counts.delivered+counts.rejected>0 && <div style={{fontSize:10,lineHeight:1.3,marginTop:2}}>
+                {counts.orders>0 && <span title="Orders">●{counts.orders} </span>}
+                {counts.dispatched>0 && <span title="Dispatched" style={{color:"#2563eb"}}>●{counts.dispatched} </span>}
+                {counts.delivered>0 && <span title="Delivered" style={{color:"#15803d"}}>●{counts.delivered} </span>}
+                {counts.rejected>0 && <span title="Rejected" style={{color:"#dc2626"}}>●{counts.rejected}</span>}
+              </div>}
+            </button>;
+          })}
+        </div>
+        <p className="muted-text" style={{marginTop:8}}>● Orders placed　<span style={{color:"#2563eb"}}>●</span> Dispatched　<span style={{color:"#15803d"}}>●</span> Delivered　<span style={{color:"#dc2626"}}>●</span> Rejected</p>
+        <div className="inline-actions" style={{justifyContent:"space-between",marginTop:8}}>
+          <strong>{selectedOrderDate ? new Date(selectedOrderDate+"T00:00:00").toLocaleDateString("en-IN",{day:"numeric",month:"long",year:"numeric"}) : "Select a date to filter orders"}</strong>
           <button className="secondary" onClick={() => setSelectedOrderDate("")}>Show all dates</button>
         </div>
         {selectedOrderDate && <div className="admin-grid" style={{marginTop:12}}>
-          <div className="admin-stat"><span>Total orders</span><strong>{selectedDayOrders.length}</strong></div>
+          <div className="admin-stat"><span>Orders placed</span><strong>{selectedDayOrders.length}</strong></div>
           <div className="admin-stat"><span>Dispatched</span><strong>{dayCount("dispatched")}</strong></div>
           <div className="admin-stat"><span>Delivered</span><strong>{dayCount("delivered")}</strong></div>
           <div className="admin-stat"><span>Rejected</span><strong>{dayCount("rejected")}</strong></div>
