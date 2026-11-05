@@ -7,7 +7,7 @@ import { supabaseBrowser } from "@/lib/supabase";
 import { getProducts } from "@/lib/products";
 
 const CART_KEY = "velfrok-cart-v1";
-const COD_VISIBLE = process.env.NEXT_PUBLIC_COD_ENABLED === "true";
+const COD_VISIBLE = process.env.NEXT_PUBLIC_COD_ENABLED !== "false";
 
 export default function CheckoutPage() {
   const router = useRouter();
