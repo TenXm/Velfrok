@@ -24,6 +24,7 @@ import {
   CookingPot,
   Sprout,
   Droplet,
+  Package,
 } from "lucide-react";
 
 import Link from "next/link";
@@ -319,7 +320,7 @@ export default function Storefront() {
 
           <div className="header-actions">
             <AuthStatus />
-            <Link href="/my-orders" className="header-action" aria-label="My orders">My Orders</Link>
+            <Link href="/my-orders" className="header-action" aria-label="My orders"><Package size={20} />My Orders</Link>
 
             <button
               className="header-action"
