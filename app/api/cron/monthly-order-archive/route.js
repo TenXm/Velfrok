@@ -95,9 +95,10 @@ export async function GET(req) {
     await db.storage.from("order-archives").remove([storagePath]);
     return Response.json({ error: "Archive record could not be saved. Original orders were left unchanged." }, { status: 500 });
   }
-  const ids = (orders || []).map(order => order.id);
-  if (ids.length) {
-    const { error: markError } = await db.from("orders").update({ archived_at: new Date().toISOString() }).in("id", ids).is("archived_at", null);
+  if ((orders || []).length) {
+    const { error: markError } = await db.from("orders").update({ archived_at: new Date().toISOString() })
+      .eq("fulfillment_status", "delivered").gte("delivered_at", window.start).lt("delivered_at", window.end)
+      .is("archived_at", null);
     if (markError) return Response.json({ error: "Excel was created, but source orders could not be marked archived. Keep the archive and retry after checking orders.", archive }, { status: 500 });
   }
   return Response.json({ ok: true, archive, orderCount: (orders || []).length, itemCount: rows.length });
