@@ -492,6 +492,7 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
     const acceptance = String(o.order_acceptance_status || "").toLowerCase();
     const fulfillment = String(o.fulfillment_status || "").toLowerCase();
     const status = acceptance === "rejected" ? "rejected"
+      : String(o.payment_status || "").toLowerCase() === "rejected" ? "denied"
       : fulfillment === "delivered" || Boolean(o.delivered_at) ? "delivered"
       : acceptance === "pending" ? "pending"
       : acceptance === "accepted" ? "accepted" : "";
@@ -566,7 +567,7 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
       <div className="inline-actions" style={{margin:"12px 0",justifyContent:"flex-start",gap:10,flexWrap:"wrap"}}>
         <label style={{margin:0,fontWeight:600}}>Filter orders</label>
         <select aria-label="Filter orders by status" style={{maxWidth:210}} value={orderStatusFilters[0] || "all"} onChange={e => setOrderStatusFilters(e.target.value === "all" ? [] : [e.target.value])}>
-          <option value="all">All Orders</option><option value="accepted">Accepted Order</option><option value="rejected">Rejected Order</option><option value="delivered">Delivered Order</option><option value="pending">Pending Order</option>
+          <option value="all">All Orders</option><option value="accepted">Accepted Order</option><option value="denied">Denied Order</option><option value="rejected">Rejected Order</option><option value="delivered">Delivered Order</option><option value="pending">Pending Order</option>
         </select>
         <button type="button" className="secondary" aria-expanded={calendarOpen} aria-label={calendarOpen ? "Close order calendar" : "Open order calendar"} onClick={() => setCalendarOpen(open => !open)} style={{minWidth:44}}>{calendarOpen ? "✕" : "📅"}</button>
         {selectedOrderDate && <span className="muted-text">Date: {new Date(selectedOrderDate+"T00:00:00").toLocaleDateString("en-IN")}</span>}
