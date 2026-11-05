@@ -17,9 +17,12 @@ create table if not exists public.order_archives (
   order_count integer not null default 0,
   item_count integer not null default 0,
   generated_at timestamptz not null default now(),
+  deleted_at timestamptz,
   created_at timestamptz not null default now(),
   constraint order_archives_period_unique unique (period_start)
 );
+
+alter table public.order_archives add column if not exists deleted_at timestamptz;
 
 alter table public.order_archives enable row level security;
 revoke all on public.order_archives from anon, authenticated;
