@@ -86,7 +86,7 @@ async function makeInvoice(order, settings) {
   const safe = value => safeText(value, font);
   const moneyText = value => {
     const amount = Number(value || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    return (supported.has(0x20b9) ? "₹ " : "INR ") + amount;
+    return "₹ " + amount;
   };
   const subtotal = Number(order.subtotal ?? order.total_amount ?? order.total ?? 0);
   const discount = Number(order.discount_amount ?? order.discount ?? 0);
@@ -134,7 +134,8 @@ async function makeInvoice(order, settings) {
     contactLines.slice(0, 3).forEach((value, index) => {
       page.drawText(safe(value).slice(0, 110), { x: left, y: PAGE.height - 72 - index * 11, size: 7.5, font, color: grey });
     });
-    page.drawText("INVOICE", { x: right - 112, y: PAGE.height - 55, size: 18, font: bold, color: black });
+    const invoiceTitle = "INVOICE";
+    page.drawText(invoiceTitle, { x: (PAGE.width - font.widthOfTextAtSize(invoiceTitle, 18)) / 2, y: PAGE.height - 55, size: 18, font: bold, color: black });
     page.drawText("Order " + safe(orderNo), { x: right - 150, y: PAGE.height - 76, size: 8.5, font, color: dark });
     page.drawText("Invoice date: " + safe(date(order.created_at)), { x: right - 190, y: PAGE.height - 91, size: 8, font, color: grey });
     if (contactLines[3]) page.drawText(safe(contactLines[3]), { x: left, y: PAGE.height - 105, size: 7.5, font, color: grey });
