@@ -84,7 +84,7 @@ export default function MyOrdersPage() {
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(190px,1fr))", gap: 14, padding: "16px 0" }}>
             <div><small style={muted}>PAYMENT</small><p style={{ fontWeight: 700, margin: "5px 0" }}>{paymentLabels[payment] || payment.replaceAll("_", " ")}</p><small style={muted}>{String(order.payment_method || "").toUpperCase()}</small></div>
-            <div><small style={muted}>ORDER STATUS</small><p style={{ fontWeight: 700, margin: "5px 0" }}>{fulfillmentLabels[status] || status.replaceAll("_", " ")}</p><small style={muted}>Acceptance: {order.order_acceptance_status || "Awaiting update"}</small></div>
+            <div><small style={muted}>ORDER STATUS</small><p style={{ fontWeight: 700, margin: "5px 0", color: order.order_acceptance_status === "rejected" ? "#b42318" : undefined }}>{order.order_acceptance_status === "rejected" ? "Order rejected" : (fulfillmentLabels[status] || status.replaceAll("_", " "))}</p><small style={muted}>Acceptance: {order.order_acceptance_status || "Awaiting update"}</small></div>
           </div>
           {order.payment_method === "cod" && payment === "due_on_delivery" && <p style={{ background: "#f2f5ed", padding: 12, borderRadius: 8, fontSize: 13 }}>Please pay the delivery partner when your order arrives.</p>}
           {order.payment_method === "upi" && payment === "pending_verification" && <p style={{ background: "#f2f5ed", padding: 12, borderRadius: 8, fontSize: 13 }}>Your UTR has been received and is awaiting verification.</p>}
