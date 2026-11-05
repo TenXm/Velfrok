@@ -6,6 +6,8 @@ import { supabaseAdminBrowser } from "@/lib/supabase-admin-browser";
 type AnyRow = Record<string, any>;
 type Props = { accessToken: string; initialOrders?: AnyRow[] };
 type Option = { id: string; attribute_name: string; attribute_slug: string; value: string; normalized_value: string };
+const DELIVERY_PARTNERS = ["Delhivery", "Blue Dart", "DTDC", "India Post", "Ekart Logistics", "Ecom Express", "Xpressbees", "Shadowfax", "Amazon Shipping", "The Professional Couriers", "Gati", "FedEx", "UPS", "DHL", "Aramex", "Shiprocket", "Other"];
+const localDateKey = (value: string) => { const date = new Date(value); return Number.isNaN(date.getTime()) ? "" : [date.getFullYear(), String(date.getMonth()+1).padStart(2,"0"), String(date.getDate()).padStart(2,"0")].join("-"); };
 
 const money = (value: unknown) => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(Number(value || 0));
 const dateText = (value: string) => value ? new Date(value).toLocaleString("en-IN") : "—";
@@ -101,6 +103,8 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
   const [error, setError] = useState("");
   const [productSearch, setProductSearch] = useState("");
   const [orderSearch, setOrderSearch] = useState("");
+  const [selectedOrderDate, setSelectedOrderDate] = useState("");
+  const [deliveryEdits, setDeliveryEdits] = useState<Record<string, { partner: string; awb: string; trackingUrl: string }>>({});
   const [stockFilter, setStockFilter] = useState("all");
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
@@ -354,6 +358,17 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
     finally { setBusy(false); }
   };
 
+  const saveDelivery = async (order: AnyRow) => {
+    const edit = deliveryEdits[order.id] || { partner: order.delivery_partner || "", awb: order.awb_number || "", trackingUrl: order.tracking_url || "" };
+    setBusy(true); setError(""); setMessage("");
+    try {
+      await api("/api/admin/orders", { method: "PATCH", body: JSON.stringify({ orderId: order.id, action: "save_delivery", deliveryPartner: edit.partner, awbNumber: edit.awb, trackingUrl: edit.trackingUrl }) });
+      setMessage("Courier and AWB details saved.");
+      await loadAll();
+    } catch (e) { setError(e instanceof Error ? e.message : "Could not save delivery details."); }
+    finally { setBusy(false); }
+  };
+
   const updateOrder = async (order: AnyRow, field: "payment" | "fulfillment") => {
     const edit = orderEdits[order.id] || { payment: order.payment_status || "pending_utr", fulfillment: order.fulfillment_status || "confirmed" };
     const body = field === "payment" ? { orderId: order.id, paymentStatus: edit.payment } : { orderId: order.id, fulfillmentStatus: edit.fulfillment };
@@ -418,7 +433,12 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
     const stock = Number(p.quantity || 0);
     return matches && (stockFilter === "all" || (stockFilter === "low" && stock > 0 && stock < 10) || (stockFilter === "out" && stock === 0));
   }), [products, productSearch, stockFilter]);
-  const filteredOrders = orders.filter(o => [o.order_number, o.customer_name, o.mobile].some(v => String(v || "").toLowerCase().includes(orderSearch.toLowerCase())));
+  const filteredOrders = orders.filter(o =>
+    (!selectedOrderDate || localDateKey(o.created_at) === selectedOrderDate) &&
+    [o.order_number, o.customer_name, o.mobile].some(v => String(v || "").toLowerCase().includes(orderSearch.toLowerCase()))
+  );
+  const selectedDayOrders = selectedOrderDate ? orders.filter(o => localDateKey(o.created_at) === selectedOrderDate) : [];
+  const dayCount = (status: string) => selectedDayOrders.filter(o => status === "rejected" ? o.order_acceptance_status === "rejected" : o.fulfillment_status === status).length;
   const pendingPayments = orders.filter(o => ["pending_utr", "pending_verification"].includes(o.payment_status)).length;
   const revenue = orders.filter(o => o.payment_status === "accepted").reduce((sum,o) => sum + Number(o.total_amount || 0), 0);
   const lowStock = products.filter(p => Number(p.quantity) < 10).length;
@@ -454,6 +474,18 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
 
     {tab === "orders" && <div className="admin-card">
       <div className="section-head"><h2>Order management</h2><div className="inline-actions"><input style={{width:220}} value={orderSearch} onChange={e => setOrderSearch(e.target.value)} placeholder="Search order / customer"/><button className="secondary" onClick={() => downloadCsv(filteredOrders)}>Export CSV</button></div></div>
+      <div className="admin-card" style={{marginBottom:14}}>
+        <div className="inline-actions" style={{alignItems:"end",justifyContent:"space-between"}}>
+          <div className="field" style={{maxWidth:260,margin:0}}><label>📅 View orders by date</label><input type="date" value={selectedOrderDate} onChange={e => setSelectedOrderDate(e.target.value)}/></div>
+          <button className="secondary" onClick={() => setSelectedOrderDate("")}>Show all dates</button>
+        </div>
+        {selectedOrderDate && <div className="admin-grid" style={{marginTop:12}}>
+          <div className="admin-stat"><span>Total orders</span><strong>{selectedDayOrders.length}</strong></div>
+          <div className="admin-stat"><span>Dispatched</span><strong>{dayCount("shipped")}</strong></div>
+          <div className="admin-stat"><span>Delivered</span><strong>{dayCount("delivered")}</strong></div>
+          <div className="admin-stat"><span>Rejected</span><strong>{dayCount("rejected")}</strong></div>
+        </div>}
+      </div>
       <div className="inline-actions" style={{margin:"12px 0",justifyContent:"space-between"}}>
         <label style={{display:"flex",alignItems:"center",gap:8,margin:0}}>
           <input type="checkbox" style={{width:16,padding:0,height:16,accentColor:"#8466df"}} checked={filteredOrders.length > 0 && filteredOrders.every(o => selectedOrders.includes(o.id))} onChange={event => setSelectedOrders(old => event.target.checked ? Array.from(new Set([...old, ...filteredOrders.map(o => o.id)])) : old.filter(id => !filteredOrders.some(o => o.id === id)))}/>
@@ -471,7 +503,15 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
           <td><strong>{o.order_number || o.id.slice(0,8)}</strong><br/>{o.customer_name}<br/><span className="muted-text">{o.mobile} · {o.city} · {o.pin_code || o.pincode}</span></td>
           <td>{(o.order_items || []).map((it: AnyRow) => <div key={it.id}>{it.product_name} × {it.quantity}<br/><span className="muted-text">{it.sku}</span></div>)}</td>
           <td><strong>{o.payment_method?.toUpperCase() || "UPI"} · {o.payment_status}</strong><br/><span className="muted-text">Acceptance: {o.order_acceptance_status || "pending"} · UTR: {o.utr_number || "—"}</span>{o.payment_method === "cod" ? <div className="inline-actions" style={{marginTop:6}}>{o.order_acceptance_status === "pending" && <><button className="primary" disabled={busy} onClick={() => runCodAction(o,"accept_cod")}>Accept COD</button></>}{o.fulfillment_status === "delivered" && o.payment_status === "due_on_delivery" && <button className="primary" disabled={busy} onClick={() => runCodAction(o,"collect_cod")}>Record cash received</button>}</div> : <><select value={edit.payment} onChange={e => setOrderEdits(old => ({...old,[o.id]:{...edit,payment:e.target.value}}))}><option value="accepted">Accept payment</option><option value="rejected">Reject payment</option><option value="pending_utr" disabled>Pending UTR (read only)</option><option value="pending_verification" disabled>Pending verification (read only)</option></select><button className="primary" style={{marginTop:6}} disabled={busy || !["accepted","rejected"].includes(edit.payment) || edit.payment === o.payment_status} onClick={() => updateOrder(o,"payment")}>Submit payment</button></>}{o.order_acceptance_status === "pending" && <button className="danger" style={{marginTop:6}} disabled={busy} onClick={() => runCodAction(o,"reject_order")}>Reject order</button>}</td>
-          <td><strong>{o.fulfillment_status}</strong><select value={edit.fulfillment} onChange={e => setOrderEdits(old => ({...old,[o.id]:{...edit,fulfillment:e.target.value}}))}><option value={o.fulfillment_status}>{o.fulfillment_status}</option>{next !== o.fulfillment_status && <option value={next}>{next}</option>}</select><button className="primary" style={{marginTop:6}} disabled={busy || edit.fulfillment === o.fulfillment_status || o.order_acceptance_status !== "accepted" || (o.payment_method !== "cod" && o.payment_status !== "accepted")} onClick={() => updateOrder(o,"fulfillment")}>Submit status</button></td>
+          <td><strong>{o.fulfillment_status}</strong><select value={edit.fulfillment} onChange={e => setOrderEdits(old => ({...old,[o.id]:{...edit,fulfillment:e.target.value}}))}><option value={o.fulfillment_status}>{o.fulfillment_status}</option>{next !== o.fulfillment_status && <option value={next}>{next}</option>}</select><button className="primary" style={{marginTop:6}} disabled={busy || edit.fulfillment === o.fulfillment_status || o.order_acceptance_status !== "accepted" || (o.payment_method !== "cod" && o.payment_status !== "accepted")} onClick={() => updateOrder(o,"fulfillment")}>Submit status</button>
+            {o.order_acceptance_status === "accepted" && ["packed","ready_to_ship","shipped"].includes(o.fulfillment_status) && <div style={{marginTop:10,minWidth:190}}>
+              <label>Delivery partner</label><select value={(deliveryEdits[o.id]?.partner ?? o.delivery_partner) || ""} onChange={e => setDeliveryEdits(old => ({...old,[o.id]:{partner:e.target.value,awb:old[o.id]?.awb ?? o.awb_number ?? "",trackingUrl:old[o.id]?.trackingUrl ?? o.tracking_url ?? ""}}))}><option value="">Select courier</option>{DELIVERY_PARTNERS.map(name => <option key={name} value={name}>{name}</option>)}</select>
+              <label style={{marginTop:5}}>AWB / Tracking number</label><input value={(deliveryEdits[o.id]?.awb ?? o.awb_number) || ""} onChange={e => setDeliveryEdits(old => ({...old,[o.id]:{partner:old[o.id]?.partner ?? o.delivery_partner ?? "",awb:e.target.value,trackingUrl:old[o.id]?.trackingUrl ?? o.tracking_url ?? ""}}))} placeholder="Enter AWB number"/>
+              <label style={{marginTop:5}}>Tracking URL (optional)</label><input value={(deliveryEdits[o.id]?.trackingUrl ?? o.tracking_url) || ""} onChange={e => setDeliveryEdits(old => ({...old,[o.id]:{partner:old[o.id]?.partner ?? o.delivery_partner ?? "",awb:old[o.id]?.awb ?? o.awb_number ?? "",trackingUrl:e.target.value}}))} placeholder="https://..."/>
+              <button className="secondary" style={{marginTop:6}} disabled={busy} onClick={() => saveDelivery(o)}>Save courier / AWB</button>
+              {o.awb_number && <p className="muted-text" style={{marginTop:4}}>{o.delivery_partner} · {o.awb_number}{o.tracking_url && <> · <a href={o.tracking_url} target="_blank" rel="noreferrer">Track parcel</a></>}</p>}
+            </div>}
+          </td>
           <td>{money(o.total_amount)}</td>
           <td>{dateText(o.created_at)}<br/><span className="muted-text">{o.address || o.street_address || ""}</span></td>
         </tr>;
