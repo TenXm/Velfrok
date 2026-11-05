@@ -29,6 +29,20 @@ export async function PATCH(req) {
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return fail("Invalid order ID.", 400);
     const userDb = supabaseForUser(req);
 
+    if (body?.action === "reject_order") {
+      const db = supabaseAdmin();
+      const { data: rejectedOrder, error: rejectError } = await db.from("orders")
+        .update({ order_acceptance_status: "rejected" })
+        .eq("id", id)
+        .eq("order_acceptance_status", "pending")
+        .select("id,order_acceptance_status,payment_method,payment_status")
+        .maybeSingle();
+      if (rejectError) { console.error("Order rejection failed:", rejectError.message); return fail("Could not reject this order. Refresh and try again.", 409); }
+      if (!rejectedOrder) return fail("This order is no longer pending and cannot be rejected.", 409);
+      try { await auditLog(user.email || user.id, "order.reject", { id, paymentMethod: rejectedOrder.payment_method }, clientIp(req)); } catch (e) { console.error("Audit logging failed:", e); }
+      return Response.json({ ok: true, order: rejectedOrder }, { headers: { "Cache-Control": "no-store" } });
+    }
+
     if (["accept_cod","reject_cod","collect_cod"].includes(body?.action)) {
       const fn = { accept_cod: "accept_cod_order", reject_cod: "reject_cod_order", collect_cod: "record_cod_payment" }[body.action];
       const { data, error: rpcError } = await userDb.rpc(fn, { p_order_id: id });
