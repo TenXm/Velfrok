@@ -112,7 +112,7 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
   const [editingId, setEditingId] = useState<string | null>(null);
   const [productForm, setProductForm] = useState({
     name: "", sku: "", category_id: "", description: "", mrp: "", selling_price: "", quantity: "0",
-    colours: [] as string[], imagesText: "", dimensions: "", weight: "", attributes: {} as Record<string, string[]>, is_active: true,
+    colours: [] as string[], imagesText: "", dimensions: "", weight: "", gst_rate: "0", attributes: {} as Record<string, string[]>, is_active: true,
   });
   const [newAttributeName, setNewAttributeName] = useState("");
   const [customAttributeNames, setCustomAttributeNames] = useState<string[]>([]);
@@ -194,7 +194,7 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
 
   const resetProductForm = () => {
     setEditingId(null);
-    setProductForm({ name: "", sku: "", category_id: "", description: "", mrp: "", selling_price: "", quantity: "0", colours: [], imagesText: "", dimensions: "", weight: "", attributes: {}, is_active: true });
+    setProductForm({ name: "", sku: "", category_id: "", description: "", mrp: "", selling_price: "", quantity: "0", colours: [], imagesText: "", dimensions: "", weight: "", gst_rate: "0", attributes: {}, is_active: true });
     setNewAttributeName("");
     setCustomAttributeNames([]);
   };
@@ -205,7 +205,7 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
       name: product.name || "", sku: product.sku || "", category_id: product.category_id || "", description: product.description || "",
       mrp: String(product.mrp ?? ""), selling_price: String(product.selling_price ?? ""), quantity: String(product.quantity ?? 0),
       colours: Array.isArray(product.colours) ? product.colours : [], imagesText: Array.isArray(product.images) ? product.images.join("\n") : "",
-      dimensions: product.dimensions || "", weight: product.weight || "", attributes: product.attributes && typeof product.attributes === "object" ? product.attributes : {}, is_active: product.is_active !== false,
+      dimensions: product.dimensions || "", weight: product.weight || "", gst_rate: String(product.gst_rate ?? 0), attributes: product.attributes && typeof product.attributes === "object" ? product.attributes : {}, is_active: product.is_active !== false,
     });
     setTab("products");
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -245,7 +245,7 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
       description: productForm.description, mrp: Number(productForm.mrp), selling_price: Number(productForm.selling_price),
       quantity: Number(productForm.quantity), colours: productForm.colours,
       images: productForm.imagesText.split("\n").map(v => v.trim()).filter(Boolean),
-      dimensions: productForm.dimensions, weight: productForm.weight, attributes: productForm.attributes, is_active: productForm.is_active,
+      dimensions: productForm.dimensions, weight: productForm.weight, gst_rate: Number(productForm.gst_rate), attributes: productForm.attributes, is_active: productForm.is_active,
     };
     try {
       const result = await api("/api/admin/catalog", { method: editingId ? "PATCH" : "POST", body: JSON.stringify(editingId ? { action: "product", id: editingId, product: payload } : { action: "product", product: payload }) });
@@ -478,7 +478,7 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
             <CategoryPicker categories={categories} value={productForm.category_id} onChange={id => setProductForm(f => ({...f,category_id:id}))} onCreate={createCategory}/>
             <div className="field"><label>Product status</label><select value={productForm.is_active ? "active" : "inactive"} onChange={e => setProductForm(f => ({...f,is_active:e.target.value==="active"}))}><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
             <div className="field"><label>MRP (₹) *</label><input required type="number" min="0.01" step="0.01" value={productForm.mrp} onChange={e => setProductForm(f => ({...f,mrp:e.target.value}))}/></div>
-            <div className="field"><label>Selling price (₹) *</label><input required type="number" min="0.01" step="0.01" value={productForm.selling_price} onChange={e => setProductForm(f => ({...f,selling_price:e.target.value}))}/><small>Automatic discount: {discountPct}%</small></div>
+            <div className="field"><label>Selling price (₹) * — GST included</label><input required type="number" min="0.01" step="0.01" value={productForm.selling_price} onChange={e => setProductForm(f => ({...f,selling_price:e.target.value}))}/><small>Final tax-inclusive price; GST will not be added at checkout. Automatic discount: {discountPct}%</small></div>\n            <div className="field"><label>Product GST rate</label><select value={productForm.gst_rate} onChange={e => setProductForm(f => ({...f,gst_rate:e.target.value}))}><option value="0">0%</option><option value="5">5%</option><option value="10">10%</option><option value="12">12%</option><option value="18">18%</option><option value="28">28%</option></select><small>Change this product’s rate here. Past orders retain their original rate.</small></div>
             <div className="field"><label>Stock quantity *</label><input required type="number" min="0" step="1" value={productForm.quantity} onChange={e => setProductForm(f => ({...f,quantity:e.target.value}))}/></div>
             <div className="field"><label>Weight</label><input value={productForm.weight} onChange={e => setProductForm(f => ({...f,weight:e.target.value}))} placeholder="e.g. 500 g"/></div>
             <div className="field"><label>Dimensions</label><input value={productForm.dimensions} onChange={e => setProductForm(f => ({...f,dimensions:e.target.value}))} placeholder="e.g. 20 × 10 × 5 cm"/></div>
