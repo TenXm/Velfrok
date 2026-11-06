@@ -1278,7 +1278,7 @@ a {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   align-items: center;
   justify-content: stretch;
-  gap: 12px;
+  gap: 6px;
   width: 100%;
   min-width: 0;
 }
@@ -1296,13 +1296,13 @@ a {
 
 @media (max-width: 850px) {
   .header-actions {
-    gap: 10px;
+    gap: 5px;
   }
 }
 
 @media (max-width: 420px) {
   .header-actions {
-    gap: 7px;
+    gap: 3.5px;
   }
 
   .header-actions > .header-action {
