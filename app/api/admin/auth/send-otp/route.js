@@ -25,6 +25,84 @@ function hashOtp(code) {
   return createHmac("sha256", secret).update(code).digest("hex");
 }
 
+function base64Url(value) {
+  return Buffer.from(value, "utf8").toString("base64")
+    .replace(/\\+/g, "-")
+    .replace(/\\//g, "_")
+    .replace(/=+$/g, "");
+}
+
+async function sendAdminOtpWithGmailApi({ to, code }) {
+  const clientId = process.env.GMAIL_CLIENT_ID;
+  const clientSecret = process.env.GMAIL_CLIENT_SECRET;
+  const refreshToken = process.env.GMAIL_REFRESH_TOKEN;
+  const fromEmail = process.env.GMAIL_FROM_EMAIL;
+
+  if (!clientId || !clientSecret || !refreshToken || !fromEmail) {
+    throw new Error("Gmail API environment variables are missing.");
+  }
+
+  const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      refresh_token: refreshToken,
+      grant_type: "refresh_token",
+    }),
+    cache: "no-store",
+  });
+
+  if (!tokenResponse.ok) {
+    throw new Error(`Gmail OAuth token request failed (HTTP ${tokenResponse.status}).`);
+  }
+
+  const tokenData = await tokenResponse.json();
+  if (!tokenData.access_token) {
+    throw new Error("Gmail OAuth response did not include an access token.");
+  }
+
+  const boundary = `velfrok-${randomUUID()}`;
+  const subject = "Your Velfrok Admin sign-in code";
+  const text = `Your Velfrok Admin verification code is ${code}. It expires in 10 minutes. Do not share this code with anyone.`;
+  const html = `<h2>Velfrok Admin sign-in</h2><p>Your 6-digit verification code is:</p><h1 style="letter-spacing:6px">${code}</h1><p>This code expires in 10 minutes. Do not share it with anyone.</p>`;
+  const mime = [
+    `From: Velfrok <${fromEmail}>`,
+    `To: ${to}`,
+    `Subject: ${subject}`,
+    "MIME-Version: 1.0",
+    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+    "",
+    `--${boundary}`,
+    'Content-Type: text/plain; charset="UTF-8"',
+    "Content-Transfer-Encoding: 8bit",
+    "",
+    text,
+    `--${boundary}`,
+    'Content-Type: text/html; charset="UTF-8"',
+    "Content-Transfer-Encoding: 8bit",
+    "",
+    html,
+    `--${boundary}--`,
+    "",
+  ].join("\\r\\n");
+
+  const sendResponse = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${tokenData.access_token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ raw: base64Url(mime) }),
+    cache: "no-store",
+  });
+
+  if (!sendResponse.ok) {
+    throw new Error(`Gmail API send request failed (HTTP ${sendResponse.status}).`);
+  }
+}
+
 export async function POST(req) {
   try {
     const auth = await requireUser(req);
@@ -91,43 +169,15 @@ export async function POST(req) {
       return fail("Could not start verification. Please try again.", 503);
     }
 
-    const smtpHost = process.env.SMTP_HOST || "smtp.gmail.com";
-    const smtpPort = Number(process.env.SMTP_PORT || 465);
-    const smtpUser = process.env.SMTP_USER;
-    const smtpPassword = process.env.SMTP_PASSWORD;
-    const fromEmail = process.env.SMTP_FROM_EMAIL || smtpUser;
-    const fromName = process.env.SMTP_FROM_NAME || "Velfrok";
-
-    if (!smtpUser || !smtpPassword || !fromEmail || !Number.isInteger(smtpPort) || smtpPort < 1 || smtpPort > 65535) {
-      await db.from("admin_email_otp_challenges").delete().eq("id", challenge.id);
-      return fail("Admin email delivery is not configured.", 503);
-    }
-
-    let transporter;
     try {
-      const nodemailer = await import("nodemailer");
-      transporter = nodemailer.default.createTransport({
-        host: smtpHost,
-        port: smtpPort,
-        secure: smtpPort === 465,
-        auth: { user: smtpUser, pass: smtpPassword },
-        connectionTimeout: 10000,
-        greetingTimeout: 10000,
-        socketTimeout: 15000,
-      });
-      await transporter.sendMail({
-        from: { name: fromName, address: fromEmail },
-        to: email,
-        subject: "Your Velfrok Admin sign-in code",
-        text: `Your Velfrok Admin verification code is ${code}. It expires in 10 minutes. Do not share this code with anyone.`,
-        html: `<h2>Velfrok Admin sign-in</h2><p>Your 6-digit verification code is:</p><h1 style="letter-spacing:6px">${code}</h1><p>This code expires in 10 minutes. Do not share it with anyone.</p>`,
-      });
+      await sendAdminOtpWithGmailApi({ to: email, code });
     } catch (deliveryError) {
       await db.from("admin_email_otp_challenges").delete().eq("id", challenge.id);
-      console.error("Admin OTP SMTP delivery failed:", deliveryError instanceof Error ? deliveryError.message : "Unknown SMTP error");
-      return fail("Could not send the verification email. Please check the SMTP configuration.", 502);
-    } finally {
-      if (transporter) transporter.close();
+      console.error(
+        "Admin OTP Gmail API delivery failed:",
+        deliveryError instanceof Error ? deliveryError.message : "Unknown Gmail API error"
+      );
+      return fail("Could not send the verification email. Please check the Gmail API configuration.", 502);
     }
 
     return Response.json({ ok: true, expiresIn: 600 }, { headers: { "Cache-Control": "no-store" } });
