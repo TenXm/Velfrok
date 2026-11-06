@@ -69,7 +69,7 @@ a {
 .header {
   padding: 24px 0 12px;
   display: grid;
-  grid-template-columns: 165px minmax(220px, 1fr) 190px;
+  grid-template-columns: max-content minmax(200px, 1fr) minmax(340px, 1.55fr);
   gap: 24px;
   align-items: center;
 }
@@ -241,7 +241,7 @@ a {
 
 .promo-cards {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
   margin: 18px 0 22px;
 }
@@ -719,24 +719,26 @@ a {
   }
 
   .header {
-    grid-template-columns: 1fr auto;
-    gap: 14px;
+    grid-template-columns: max-content minmax(150px, 1fr) minmax(280px, 1.45fr);
+    gap: 12px;
     padding-top: 17px;
   }
 
   .brand {
-    grid-column: 1;
+    grid-column: auto;
+    min-width: 0;
   }
 
   .search {
-    grid-column: 1 / -1;
-    grid-row: 2;
+    grid-column: auto;
+    grid-row: auto;
+    min-width: 0;
   }
 
   .header-actions {
-    grid-column: 2;
-    grid-row: 1;
-    gap: 12px;
+    grid-column: auto;
+    grid-row: auto;
+    gap: 8px;
   }
 
   .nav {
