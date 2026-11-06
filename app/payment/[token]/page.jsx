@@ -232,6 +232,21 @@ export default function PaymentPage({ params }) {
                 <button className="pay-submit" type="submit" disabled={busy || !captcha}>
                   {busy ? "Submitting..." : "Submit UTR"}
                 </button>
+
+                <a
+                  className="pay-whatsapp-link"
+                  href={`https://wa.me/917718600069?text=${encodeURIComponent(
+                    `Hello Velfrok, I have made a payment for Order ${order.orderNumber} (₹${Number(order.amount).toFixed(2)}). I am sharing the payment screenshot for verification.`
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <span className="pay-whatsapp-icon" aria-hidden="true">◉</span>
+                  Send payment screenshot on WhatsApp
+                </a>
+                <p className="pay-whatsapp-note">
+                  WhatsApp will open with your order details. Please attach your payment screenshot in the chat and send it.
+                </p>
               </form>}
 
               {UPI_ID && <p className="pay-footnote">You can submit your UTR later. Your payment is not confirmed until Velfrok verifies it.</p>}
