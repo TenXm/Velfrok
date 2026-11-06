@@ -1411,3 +1411,70 @@ a {
     padding: 12px;
   }
 }
+
+
+/* Compact swipeable category rail on tablet and mobile. */
+@media (max-width: 850px) {
+  .categories {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    gap: 10px;
+    width: 100%;
+    margin: 0 0 14px;
+    padding: 10px 2px 14px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+
+  .categories::-webkit-scrollbar {
+    display: none;
+  }
+
+  .categories > .category {
+    flex: 0 0 76px;
+    width: 76px;
+    min-width: 76px;
+    gap: 6px;
+    padding: 0 2px;
+    scroll-snap-align: start;
+    white-space: normal;
+    text-align: center;
+    line-height: 1.25;
+  }
+
+  .categories > .category .category-icon {
+    width: 48px;
+    height: 48px;
+    border-width: 3px;
+  }
+
+  .categories > .category .category-icon svg {
+    width: 21px;
+    height: 21px;
+  }
+}
+
+@media (max-width: 420px) {
+  .categories {
+    gap: 8px;
+    padding-top: 7px;
+    padding-bottom: 11px;
+  }
+
+  .categories > .category {
+    flex-basis: 70px;
+    width: 70px;
+    min-width: 70px;
+    font-size: 9px;
+  }
+
+  .categories > .category .category-icon {
+    width: 44px;
+    height: 44px;
+  }
+}
