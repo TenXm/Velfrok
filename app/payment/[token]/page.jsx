@@ -196,6 +196,17 @@ export default function PaymentPage({ params }) {
                 <div className="pay-config-warning" role="status"><strong>UPI setup is not complete yet</strong><span>The store owner needs to add the Velfrok UPI ID and display name before customers can pay. Do not transfer money until these details appear here.</span></div>
               )}
 
+              {UPI_ID && (
+                <div className="pay-steps" aria-label="Payment steps">
+                  <p className="pay-steps-title">Three simple steps</p>
+                  <ol>
+                    <li><span>01</span><div><strong>Scan the QR code</strong><small>Use any UPI app on your phone.</small></div></li>
+                    <li><span>02</span><div><strong>Pay the exact amount</strong><small>Make sure the amount matches this order.</small></div></li>
+                    <li><span>03</span><div><strong>Submit your 12-digit UTR</strong><small>We’ll verify the payment and update your order.</small></div></li>
+                  </ol>
+                </div>
+              )}
+
               {UPI_ID && <form className="pay-form" onSubmit={submitUtr}>
                 <label htmlFor="utr">12-digit UTR / transaction reference</label>
                 <input
