@@ -1310,3 +1310,104 @@ a {
     padding-inline: 1px;
   }
 }
+
+
+/* Responsive storefront header: prevent the desktop min-width grid from
+   overflowing phones and keep every account/shop action fully visible. */
+@media (max-width: 850px) {
+  .header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+    padding: 16px 0 12px;
+  }
+
+  .header > .brand {
+    grid-column: 1;
+    justify-self: center;
+  }
+
+  .header > .search {
+    grid-column: 1;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .header-actions {
+    grid-column: 1;
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+    align-items: stretch;
+  }
+
+  .header-actions > .header-action {
+    width: 100%;
+    min-width: 0;
+    min-height: 58px;
+    padding: 7px 2px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+    font-size: 10px;
+    line-height: 1.2;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .header-actions > .header-action svg {
+    width: 19px;
+    height: 19px;
+    flex: none;
+  }
+
+  .nav {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 420px) {
+  .site {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .header {
+    gap: 10px;
+    padding-top: 13px;
+  }
+
+  .brand-name {
+    font-size: 25px;
+  }
+
+  .search input {
+    padding: 9px 11px;
+    font-size: 11px;
+  }
+
+  .header-actions {
+    gap: 2px;
+  }
+
+  .header-actions > .header-action {
+    min-height: 54px;
+    padding: 6px 1px;
+    font-size: 9px;
+  }
+
+  .categories {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .services {
+    grid-template-columns: 1fr;
+  }
+
+  .section {
+    padding: 12px;
+  }
+}
