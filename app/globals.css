@@ -69,8 +69,8 @@ a {
 .header {
   padding: 24px 0 12px;
   display: grid;
-  grid-template-columns: max-content minmax(200px, 1fr) minmax(340px, 1.55fr);
-  gap: 24px;
+  grid-template-columns: max-content minmax(220px, 1fr) minmax(420px, 1.8fr);
+  gap: 16px;
   align-items: center;
 }
 
@@ -719,8 +719,8 @@ a {
   }
 
   .header {
-    grid-template-columns: max-content minmax(150px, 1fr) minmax(280px, 1.45fr);
-    gap: 12px;
+    grid-template-columns: max-content minmax(140px, 1fr) minmax(360px, 1.6fr);
+    gap: 10px;
     padding-top: 17px;
   }
 
