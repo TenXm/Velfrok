@@ -27,8 +27,8 @@ function hashOtp(code) {
 
 function base64Url(value) {
   return Buffer.from(value, "utf8").toString("base64")
-    .replace(/\\+/g, "-")
-    .replace(/\\//g, "_")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
     .replace(/=+$/g, "");
 }
 
@@ -86,7 +86,7 @@ async function sendAdminOtpWithGmailApi({ to, code }) {
     html,
     `--${boundary}--`,
     "",
-  ].join("\\r\\n");
+  ].join("\r\n");
 
   const sendResponse = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
     method: "POST",
