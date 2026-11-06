@@ -1240,37 +1240,47 @@ a {
 
 
 
-/* Velfrok customer UPI payment page */
-.pay-container { width: min(100% - 32px, 620px); margin: 48px auto; padding: 0; color: #263b30; }
-.pay-header { margin-bottom: 25px; }
-.pay-eyebrow { margin: 0 0 9px; color: #65816d; font-size: 10px; font-weight: 800; letter-spacing: .16em; }
-.pay-header h1 { margin: 0; color: #183d2d; font: 700 clamp(29px,5vw,42px)/1.12 Georgia,serif; }
-.pay-header > p:last-child { margin: 10px 0 0; color: #78877d; font-size: 13px; line-height: 1.65; }
-.pay-order-number { margin: 0 0 12px; color: #758279; font-size: 12px; }
-.pay-order-number strong { color: #294c39; }
-.pay-card { padding: clamp(20px,4vw,32px); border: 1px solid #e3e9e1; border-radius: 18px; background: #fff; box-shadow: 0 16px 44px rgba(31,63,43,.07); }
-.pay-label { margin: 0 0 4px; color: #829087; font-size: 10px; font-weight: 800; letter-spacing: .12em; }
-.pay-amount { margin: 0 0 22px; color: #174b36; font: 700 clamp(30px,6vw,40px)/1.2 Georgia,serif; }
-.pay-instructions { margin: 0 0 17px; color: #68786e; font-size: 13px; line-height: 1.6; }
-.pay-app-link { display: flex; width: 100%; min-height: 48px; align-items: center; justify-content: center; gap: 10px; border-radius: 9px; background: #174b36; color: #fff; font-size: 13px; font-weight: 750; text-decoration: none; }
-.pay-app-link:hover { background: #103d2b; }
-.pay-upi-id { margin: 18px 0 12px; padding: 12px 14px; border: 1px solid #e5ebe3; border-radius: 9px; background: #f8faf6; color: #718076; font-size: 11px; }
-.pay-upi-id strong { display: block; margin-top: 4px; color: #244a35; font-size: 15px; overflow-wrap: anywhere; }
-.pay-qr { display: block; width: min(220px,100%); height: auto; margin: 18px auto 22px; padding: 9px; border: 1px solid #e3e9e1; border-radius: 12px; background: #fff; }
-.pay-form { display: grid; gap: 12px; margin-top: 22px; padding-top: 21px; border-top: 1px solid #edf0eb; }
-.pay-form label { color: #40584a; font-size: 12px; font-weight: 700; }
-.pay-input { width: 100%; min-height: 47px; box-sizing: border-box; padding: 12px 14px; border: 1px solid #dce5dc; border-radius: 9px; background: #fff; color: #233d2e; font: inherit; font-size: 15px; letter-spacing: .04em; }
-.pay-input:focus { border-color: #63866c; outline: 2px solid rgba(99,134,108,.18); }
-.pay-submit { min-height: 48px; border: 0; border-radius: 9px; background: #174b36; color: #fff; font-size: 13px; font-weight: 750; cursor: pointer; }
-.pay-submit:disabled { opacity: .48; cursor: not-allowed; }
-.pay-config-warning { display: grid; gap: 7px; padding: 16px; border: 1px solid #ead9b6; border-radius: 10px; background: #fffaf0; color: #765b2e; font-size: 12px; line-height: 1.6; }
-.pay-config-warning strong { font-size: 13px; }
-.pay-footnote { margin: 15px 0 0; color: #829087; font-size: 11px; line-height: 1.65; }
-.pay-status { margin: 16px 0 0; padding: 13px 15px; border-radius: 9px; background: #f3f7f2; color: #315b40; font-size: 12px; line-height: 1.6; }
-.pay-status.err { background: #fff4f2; color: #9b3d32; }
-.pay-status.ok { background: #eff8f0; color: #28623b; }
-.pay-state { padding: 24px; border: 1px solid #e5ebe3; border-radius: 12px; color: #6e7e73; text-align: center; }
-@media (max-width: 600px) { .pay-container { margin: 28px auto; } .pay-card { border-radius: 14px; } }
+/* Velfrok animated UPI checkout */
+.pay-container{position:relative;isolation:isolate;width:min(100% - 32px,680px);margin:clamp(28px,6vw,68px) auto;padding:0 0 36px;color:#20382b}
+.pay-container:before{content:"";position:absolute;z-index:-1;top:-100px;left:50%;width:min(760px,120vw);height:520px;transform:translateX(-50%);background:radial-gradient(ellipse at 50% 20%,rgba(190,224,195,.48),transparent 67%);pointer-events:none;animation:payGlow 8s ease-in-out infinite alternate}
+.pay-header{text-align:center;margin:0 auto 30px;animation:payRise .65s both}
+.pay-eyebrow{display:inline-flex;align-items:center;gap:8px;margin:0 0 14px;padding:8px 13px;border:1px solid #dce9dc;border-radius:99px;background:rgba(255,255,255,.75);color:#52745b;font-size:10px;font-weight:850;letter-spacing:.17em}
+.pay-eyebrow:before{content:"";width:7px;height:7px;border-radius:50%;background:#36a66a;box-shadow:0 0 0 4px #36a66a20}
+.pay-header h1{margin:0;color:#183d2d;font:700 clamp(31px,6vw,48px)/1.08 Georgia,serif;letter-spacing:-.035em}
+.pay-header>p:last-child{margin:12px 0 0;color:#718176;font-size:13px;line-height:1.7}
+.pay-order-number{display:flex;justify-content:center;gap:6px;margin:0 0 13px;color:#718176;font-size:12px}
+.pay-order-number strong{color:#294c39}
+.pay-card{position:relative;overflow:hidden;padding:clamp(20px,5vw,38px);border:1px solid rgba(220,232,220,.95);border-radius:25px;background:rgba(255,255,255,.9);box-shadow:0 24px 70px rgba(31,72,44,.11),0 3px 10px rgba(31,72,44,.04);backdrop-filter:blur(14px);animation:payRise .75s .08s both}
+.pay-card:before{content:"";position:absolute;top:0;left:0;right:0;height:5px;background:linear-gradient(90deg,#1d583b,#76b887,#d6e9d7,#1d583b);background-size:200% 100%;animation:payShimmer 5s linear infinite}
+.pay-label{margin:0 0 6px;color:#829087;font-size:10px;font-weight:850;letter-spacing:.16em}
+.pay-amount{margin:0 0 22px;color:#174b36;font:700 clamp(34px,7vw,48px)/1.15 Georgia,serif;letter-spacing:-.03em}
+.pay-instructions{margin:0 0 17px;color:#68786e;font-size:13px;line-height:1.7}
+.pay-app-link{display:flex;width:100%;min-height:52px;align-items:center;justify-content:center;gap:10px;border-radius:13px;background:linear-gradient(115deg,#174b36,#28744c);box-shadow:0 9px 20px #174b3625;color:#fff;font-size:13px;font-weight:800;text-decoration:none;transition:transform .2s,box-shadow .2s}
+.pay-app-link:hover{transform:translateY(-2px);box-shadow:0 13px 25px #174b3635}
+.pay-upi-id{margin:18px 0 12px;padding:14px 16px;border:1px solid #e3ece2;border-radius:13px;background:#f7faf5;color:#718076;font-size:11px}
+.pay-upi-id strong{display:block;margin-top:5px;color:#244a35;font-size:15px;overflow-wrap:anywhere}
+.pay-qr{display:block;width:min(232px,100%);height:auto;margin:18px auto 22px;padding:12px;border:1px solid #e1eae0;border-radius:18px;background:#fff;box-shadow:0 12px 30px rgba(33,76,45,.09);animation:payFloat 4s ease-in-out infinite}
+.pay-form{display:grid;gap:13px;margin-top:23px;padding-top:22px;border-top:1px solid #edf1eb}
+.pay-form label{color:#40584a;font-size:12px;font-weight:750}
+.pay-input{width:100%;min-height:50px;box-sizing:border-box;padding:13px 15px;border:1px solid #dce5dc;border-radius:12px;background:#fff;color:#233d2e;font:inherit;font-size:16px;letter-spacing:.08em;transition:border-color .2s,box-shadow .2s}
+.pay-input:focus{border-color:#63866c;outline:0;box-shadow:0 0 0 4px rgba(99,134,108,.13)}
+.pay-submit{min-height:51px;border:0;border-radius:12px;background:linear-gradient(110deg,#174b36,#28744c);box-shadow:0 9px 20px #174b3625;color:#fff;font-size:13px;font-weight:800;cursor:pointer;transition:transform .2s,opacity .2s}
+.pay-submit:not(:disabled):hover{transform:translateY(-2px)}
+.pay-submit:disabled{opacity:.48;cursor:not-allowed}
+.pay-config-warning{display:grid;gap:7px;padding:17px;border:1px solid #ead9b6;border-radius:13px;background:#fffaf0;color:#765b2e;font-size:12px;line-height:1.7}
+.pay-config-warning strong{font-size:13px}
+.pay-footnote{margin:15px 0 0;color:#829087;font-size:11px;line-height:1.7;text-align:center}
+.pay-status{margin:16px 0 0;padding:14px 16px;border:1px solid #e1eadf;border-radius:13px;background:#f3f7f2;color:#315b40;font-size:12px;line-height:1.7;animation:payRise .3s both}
+.pay-status.err{border-color:#f0d8d4;background:#fff4f2;color:#9b3d32}
+.pay-status.ok{border-color:#d7ebd9;background:#eff8f0;color:#28623b}
+.pay-state{padding:28px;border:1px solid #e5ebe3;border-radius:15px;background:#fff;color:#6e7e73;text-align:center;animation:payPulse 1.5s ease-in-out infinite}
+@keyframes payRise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes payFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes payGlow{from{opacity:.65;transform:translateX(-50%) scale(.96)}to{opacity:1;transform:translateX(-50%) scale(1.04)}}
+@keyframes payShimmer{to{background-position:200% 0}}
+@keyframes payPulse{50%{opacity:.65}}
+@media(prefers-reduced-motion:reduce){.pay-container:before,.pay-header,.pay-card:before,.pay-card,.pay-qr,.pay-state,.pay-status{animation:none!important;transition:none!important}}
+@media(max-width:600px){.pay-container{margin:24px auto}.pay-card{border-radius:19px}.pay-header{margin-bottom:22px}}
 
 /* Align storefront header actions evenly beside the search field. */
 .header-actions {
