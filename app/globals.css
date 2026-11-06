@@ -70,7 +70,7 @@ a {
   padding: 24px 0 12px;
   display: grid;
   grid-template-columns: max-content minmax(220px, 1fr) minmax(420px, 1.8fr);
-  gap: 16px;
+  gap: 8px;
   align-items: center;
 }
 
@@ -720,7 +720,7 @@ a {
 
   .header {
     grid-template-columns: max-content minmax(140px, 1fr) minmax(360px, 1.6fr);
-    gap: 10px;
+    gap: 5px;
     padding-top: 17px;
   }
 
@@ -1278,7 +1278,7 @@ a {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   align-items: center;
   justify-content: stretch;
-  gap: 6px;
+  gap: 3px;
   width: 100%;
   min-width: 0;
 }
@@ -1296,13 +1296,13 @@ a {
 
 @media (max-width: 850px) {
   .header-actions {
-    gap: 5px;
+    gap: 2.5px;
   }
 }
 
 @media (max-width: 420px) {
   .header-actions {
-    gap: 3.5px;
+    gap: 1.75px;
   }
 
   .header-actions > .header-action {
