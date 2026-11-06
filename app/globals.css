@@ -241,7 +241,7 @@ a {
 
 .promo-cards {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
   margin: 18px 0 22px;
 }
@@ -1275,7 +1275,7 @@ a {
 /* Align storefront header actions evenly beside the search field. */
 .header-actions {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   align-items: center;
   justify-content: stretch;
   gap: 12px;
