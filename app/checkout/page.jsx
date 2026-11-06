@@ -96,8 +96,8 @@ export default function CheckoutPage() {
     setMessage("");
     if (!token) { setError("অর্ডার করতে আগে আপনার অ্যাকাউন্টে সাইন ইন করুন।"); return; }
     if (!items.length) { setError("আপনার কার্ট খালি।"); return; }
-    if (!form.name.trim() || !form.phone || !form.line1.trim() || !form.city.trim() || !form.state.trim() || !form.pincode) {
-      setError("সবগুলো ডেলিভারি তথ্য পূরণ করুন। কোনো ঘর খালি রাখা যাবে না.");
+    if (!form.name.trim() || !form.phone || form.line1.trim().length < 5 || !form.city.trim() || !form.state.trim() || !form.pincode) {
+      setError("সব ডেলিভারি তথ্য পূরণ করুন। Street address কমপক্ষে ৫টি অক্ষরের হতে হবে।");
       return;
     }
     if (!/^[0-9]{10}$/.test(form.phone)) {
@@ -209,7 +209,7 @@ export default function CheckoutPage() {
                     </label>
                     <label className="checkout-field checkout-field-full">
                       <span>Street address</span>
-                      <input autoComplete="street-address" required maxLength={200} placeholder="House no., street, area" value={form.line1} onChange={(e) => update("line1", e.target.value)} />
+                      <input autoComplete="street-address" required minLength={5} maxLength={200} placeholder="House no., street, area" value={form.line1} onChange={(e) => update("line1", e.target.value)} />
                     </label>
                     <label className="checkout-field">
                       <span>City</span>
