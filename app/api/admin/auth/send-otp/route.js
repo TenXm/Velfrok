@@ -91,29 +91,43 @@ export async function POST(req) {
       return fail("Could not start verification. Please try again.", 503);
     }
 
-    const resendKey = process.env.RESEND_API_KEY;
-    const fromEmail = process.env.RESEND_FROM_EMAIL;
-    if (!resendKey || !fromEmail) {
+    const smtpHost = process.env.SMTP_HOST || "smtp.gmail.com";
+    const smtpPort = Number(process.env.SMTP_PORT || 465);
+    const smtpUser = process.env.SMTP_USER;
+    const smtpPassword = process.env.SMTP_PASSWORD;
+    const fromEmail = process.env.SMTP_FROM_EMAIL || smtpUser;
+    const fromName = process.env.SMTP_FROM_NAME || "Velfrok";
+
+    if (!smtpUser || !smtpPassword || !fromEmail || !Number.isInteger(smtpPort) || smtpPort < 1 || smtpPort > 65535) {
       await db.from("admin_email_otp_challenges").delete().eq("id", challenge.id);
       return fail("Admin email delivery is not configured.", 503);
     }
 
-    const delivery = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        from: fromEmail,
-        to: [email],
+    let transporter;
+    try {
+      const nodemailer = await import("nodemailer");
+      transporter = nodemailer.default.createTransport({
+        host: smtpHost,
+        port: smtpPort,
+        secure: smtpPort === 465,
+        auth: { user: smtpUser, pass: smtpPassword },
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 15000,
+      });
+      await transporter.sendMail({
+        from: { name: fromName, address: fromEmail },
+        to: email,
         subject: "Your Velfrok Admin sign-in code",
         text: `Your Velfrok Admin verification code is ${code}. It expires in 10 minutes. Do not share this code with anyone.`,
-      }),
-      cache: "no-store",
-    });
-
-    if (!delivery.ok) {
+        html: `<h2>Velfrok Admin sign-in</h2><p>Your 6-digit verification code is:</p><h1 style="letter-spacing:6px">${code}</h1><p>This code expires in 10 minutes. Do not share it with anyone.</p>`,
+      });
+    } catch (deliveryError) {
       await db.from("admin_email_otp_challenges").delete().eq("id", challenge.id);
-      console.error("Admin OTP email delivery failed:", delivery.status);
-      return fail("Could not send the verification email. Please try again.", 502);
+      console.error("Admin OTP SMTP delivery failed:", deliveryError instanceof Error ? deliveryError.message : "Unknown SMTP error");
+      return fail("Could not send the verification email. Please check the SMTP configuration.", 502);
+    } finally {
+      if (transporter) transporter.close();
     }
 
     return Response.json({ ok: true, expiresIn: 600 }, { headers: { "Cache-Control": "no-store" } });
