@@ -159,11 +159,7 @@ export default function CheckoutPage() {
             <h1>Almost yours.</h1>
             <p className="checkout-subtitle">Add your delivery details and choose how you’d like to pay.</p>
           </div>
-          <div className="checkout-progress" aria-label="Checkout progress">
-            <span className="checkout-progress-step is-active"><i>1</i> Details</span>
-            <span className="checkout-progress-line" />
-            <span className="checkout-progress-step"><i>2</i> Payment</span>
-          </div>
+
         </div>
 
         {!authReady ? (
