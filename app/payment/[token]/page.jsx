@@ -233,6 +233,10 @@ export default function PaymentPage({ params }) {
                   {busy ? "Submitting..." : "Submit UTR"}
                 </button>
 
+              </form>}
+
+              {UPI_ID && <p className="pay-footnote">You can submit your UTR later. Your payment is not confirmed until Velfrok verifies it.</p>}
+              <div className="pay-whatsapp-action">
                 <a
                   className="pay-whatsapp-link"
                   href={`https://wa.me/917718600069?text=${encodeURIComponent(
@@ -247,9 +251,7 @@ export default function PaymentPage({ params }) {
                 <p className="pay-whatsapp-note">
                   WhatsApp will open with your order details. Please attach your payment screenshot in the chat and send it.
                 </p>
-              </form>}
-
-              {UPI_ID && <p className="pay-footnote">You can submit your UTR later. Your payment is not confirmed until Velfrok verifies it.</p>}
+              </div>
             </>
           )}
 
