@@ -87,7 +87,7 @@ export async function POST(req) {
     const mobile = rawMobile;
     const address = clean(body.line1 ?? body.address, 200), city = clean(body.city, 60);
     const state = clean(body.state, 40), pincode = clean(body.pincode, 6);
-    if (!name || !/^[0-9]{10}$/.test(rawMobile) || !address || !city || !state || !/^[0-9]{6}$/.test(pincode)) return responseError("All delivery fields are required. Enter exactly 10 digits for mobile and exactly 6 digits for PIN code.", 400);
+    if (!name || !/^[0-9]{10}$/.test(rawMobile) || address.length < 5 || !city || !state || !/^[0-9]{6}$/.test(pincode)) return responseError("Please enter a complete street address (at least 5 characters), along with all other delivery details. Mobile must be exactly 10 digits and PIN code exactly 6 digits.", 400);
     const suppliedEmail = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
     if (suppliedEmail && suppliedEmail !== user.email.toLowerCase()) return responseError("Checkout email must match your verified email address.", 400);
 
