@@ -1282,6 +1282,15 @@ a {
 @media(prefers-reduced-motion:reduce){.pay-container:before,.pay-header,.pay-card:before,.pay-card,.pay-qr,.pay-state,.pay-status{animation:none!important;transition:none!important}}
 @media(max-width:600px){.pay-container{margin:24px auto}.pay-card{border-radius:19px}.pay-header{margin-bottom:22px}}
 
+.pay-steps{margin:20px 0 4px;padding:17px 17px 13px;border:1px solid #e7eee5;border-radius:15px;background:linear-gradient(145deg,#f8fbf6,#fff)}
+.pay-steps-title{margin:0 0 13px;color:#45634d;font-size:11px;font-weight:850;letter-spacing:.08em;text-transform:uppercase}
+.pay-steps ol{display:grid;gap:12px;margin:0;padding:0;list-style:none}
+.pay-steps li{display:flex;align-items:center;gap:12px}
+.pay-steps li>span{display:grid;width:30px;height:30px;flex:none;place-items:center;border:1px solid #dce9db;border-radius:50%;background:#edf5eb;color:#3d7049;font-size:10px;font-weight:850}
+.pay-steps li div{display:grid;gap:3px}
+.pay-steps li strong{color:#34513c;font-size:11px}
+.pay-steps li small{color:#829087;font-size:10px;line-height:1.4}
+
 /* Align storefront header actions evenly beside the search field. */
 .header-actions {
   display: grid;
