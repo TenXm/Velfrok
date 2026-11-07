@@ -19,6 +19,8 @@ export default function MyOrdersPage() {
   const [error, setError] = useState("");
   const [signedOut, setSignedOut] = useState(false);
   const [updated, setUpdated] = useState(null);
+  const [invoiceBusy, setInvoiceBusy] = useState("");
+  const [invoiceError, setInvoiceError] = useState("");
 
   const refresh = useCallback(async (accessToken, quiet = false) => {
     if (!accessToken) return;
@@ -59,6 +61,35 @@ export default function MyOrdersPage() {
     return () => clearInterval(timer);
   }, [token, refresh]);
 
+  async function downloadInvoice(order) {
+    if (!token || !order?.id || order.payment_status !== "accepted") return;
+    setInvoiceBusy(order.id);
+    setInvoiceError("");
+    try {
+      const response = await fetch(`/api/orders/${encodeURIComponent(order.id)}/invoice`, {
+        cache: "no-store",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        throw new Error(result.error || "Invoice download failed.");
+      }
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = "velfrok-invoice-" + String(order.order_number || order.id.slice(0, 8)).replace(/[^a-zA-Z0-9_-]/g, "_") + ".pdf";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1500);
+    } catch (error) {
+      setInvoiceError(error instanceof Error ? error.message : "Invoice download failed.");
+    } finally {
+      setInvoiceBusy("");
+    }
+  }
+
   return <main style={{ minHeight: "100vh", background: "#f7f6f0", padding: "32px 18px 60px", color: "#172d26" }}>
     <div style={{ maxWidth: 940, margin: "0 auto" }}>
       <header style={{ display: "flex", justifyContent: "space-between", gap: 16, marginBottom: 34 }}>
@@ -98,6 +129,8 @@ export default function MyOrdersPage() {
           <div style={{ borderTop: "1px solid #e8e9e2", paddingTop: 14, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
             <small style={muted}>Status refreshes every 20 seconds.</small>
             {needsUtr && <Link href={`/payment/${encodeURIComponent(order.id)}`} style={action}>Pay / Submit UTR →</Link>}
+            {payment === "accepted" && <button type="button" onClick={() => downloadInvoice(order)} disabled={invoiceBusy === order.id} style={{ ...action, border: 0, cursor: invoiceBusy === order.id ? "wait" : "pointer", opacity: invoiceBusy === order.id ? 0.65 : 1 }}>{invoiceBusy === order.id ? "Preparing invoice…" : "Download Tax Invoice PDF ↓"}</button>}
+            {invoiceError && payment === "accepted" && <small role="alert" style={{ color: "#a3332d", flexBasis: "100%" }}>{invoiceError}</small>}
           </div>
         </article>;
       })}
