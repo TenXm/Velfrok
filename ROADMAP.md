@@ -40,7 +40,7 @@ Status key: [x] Done = production-tested or verified in the reviewed source; [ ]
 - [ ] Committed: native Web Share plus WhatsApp, Telegram, Facebook, X and Copy Link fallback; Instagram users copy the link and share it in-app. Verify on mobile and desktop.
 - [ ] Committed: product gallery pinch zoom and double-click zoom/reset; verify on touch devices.
 - [ ] Committed: Product Details now shows low-stock quantity and distinct Out of Stock text/style; verify against live stock.
-- [ ] Committed: product cards now have accessible image dots when multiple images exist; verify with a multi-image product.
+- [ ] Committed: product cards now have accessible image dots and low/out-of-stock labels; Add to Cart is disabled at zero stock. Verify with multi-image and zero-stock products.
 
 ### P1 — UTR assistance
 - [ ] Committed: UTR help dialog includes the exact reminder copy and opens when an empty UTR submission is attempted; verify after deployment.
