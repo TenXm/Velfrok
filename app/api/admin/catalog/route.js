@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import { requireAdmin } from "@/lib/auth";
-import { rateLimit } from "@/lib/rate-limit";
+import { rateLimit, clientIp } from "@/lib/rate-limit";
+import { audit } from "@/lib/audit";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const fail = (message, status = 400) => Response.json({ error: message }, { status });
@@ -121,6 +122,10 @@ export async function POST(req) {
         console.error("Product create failed:", error.message);
         return fail(error.code === "23505" ? "Product name, SKU or slug already exists." : "Could not create product.", error.code === "23505" ? 409 : 500);
       }
+      await audit("product.create", {
+        actorId: auth.user.id, actorEmail: auth.user.email || null, resourceId: data.id,
+        ipAddress: clientIp(req), productName: data.name, sku: data.sku, isActive: data.is_active,
+      });
       return Response.json({ product: data }, { status: 201 });
     }
 
@@ -210,6 +215,10 @@ export async function PATCH(req) {
       return fail(error.code === "23505" ? "Product name, SKU or slug already exists." : "Could not update product.", error.code === "23505" ? 409 : 500);
     }
     if (!data) return fail("Product not found.", 404);
+    await audit("product.update", {
+      actorId: auth.user.id, actorEmail: auth.user.email || null, resourceId: data.id,
+      ipAddress: clientIp(req), productName: data.name, sku: data.sku, isActive: data.is_active,
+    });
     return Response.json({ product: data });
   } catch (error) {
     if (error instanceof Response) return error;
@@ -217,6 +226,7 @@ export async function PATCH(req) {
     return fail("Server error.", 500);
   }
 }
+
 export async function DELETE(req) {
   try {
     const auth = await guard(req, "delete");
@@ -235,12 +245,16 @@ export async function DELETE(req) {
     if (!UUID.test(id)) return fail("Invalid product ID.");
     const { data, error } = await supabaseAdmin().from("products")
       .update({ is_active: false, updated_at: new Date().toISOString() })
-      .eq("id", id).select("id,is_active").maybeSingle();
+      .eq("id", id).select("id,name,sku,is_active").maybeSingle();
     if (error) {
       console.error("Product archive failed:", error.message);
       return fail("Could not archive product.", 500);
     }
     if (!data) return fail("Product not found.", 404);
+    await audit("product.archive", {
+      actorId: auth.user.id, actorEmail: auth.user.email || null, resourceId: data.id,
+      ipAddress: clientIp(req), productName: data.name, sku: data.sku, isActive: data.is_active,
+    });
     return Response.json({ ok: true, product: data });
   } catch (error) {
     if (error instanceof Response) return error;
