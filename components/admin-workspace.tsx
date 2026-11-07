@@ -194,6 +194,7 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [productSearch, setProductSearch] = useState("");
+  const [productStatusFilter, setProductStatusFilter] = useState("active");
   const [orderSearch, setOrderSearch] = useState("");
   const [selectedOrderDate, setSelectedOrderDate] = useState("");
   const [orderStatusFilters, setOrderStatusFilters] = useState<string[]>([]);
@@ -414,6 +415,17 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
     } catch (e) { setError(e instanceof Error ? e.message : "Could not archive product."); }
   };
 
+  const restoreProduct = async (id: string) => {
+    if (!window.confirm("Restore this archived product? It will become visible on the storefront again.")) return;
+    setBusy(true); setError(""); setMessage("");
+    try {
+      const result = await api("/api/admin/catalog", { method: "PATCH", body: JSON.stringify({ action: "restore", id }) });
+      setProducts(old => old.map(p => p.id === id ? { ...p, ...result.product } : p));
+      setMessage("Product restored and made active.");
+    } catch (e) { setError(e instanceof Error ? e.message : "Could not restore product."); }
+    finally { setBusy(false); }
+  };
+
   const adjustInventory = async () => {
     if (!selectedProducts.length) { setError("Select at least one product."); return; }
     const amount = Number(stockAmount);
@@ -552,6 +564,12 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
     const stock = Number(p.quantity || 0);
     return matches && (stockFilter === "all" || (stockFilter === "low" && stock > 0 && stock < 10) || (stockFilter === "out" && stock === 0));
   }), [products, productSearch, stockFilter]);
+  const catalogueFilteredProducts = useMemo(() => products.filter(p => {
+    const q = productSearch.toLowerCase();
+    const matchesSearch = !q || [p.name, p.sku].some(v => String(v || "").toLowerCase().includes(q));
+    const matchesStatus = productStatusFilter === "all" || (productStatusFilter === "active" ? p.is_active !== false : p.is_active === false);
+    return matchesSearch && matchesStatus;
+  }), [products, productSearch, productStatusFilter]);
   const filteredOrders = orders.filter(o => {
     const acceptance = String(o.order_acceptance_status || "").toLowerCase();
     const fulfillment = String(o.fulfillment_status || "").toLowerCase();
@@ -764,8 +782,8 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
       </div>
 
       <div className="admin-card">
-        <div className="section-head"><h2>Product catalogue</h2><input style={{maxWidth:260}} value={productSearch} onChange={e => setProductSearch(e.target.value)} placeholder="Search name or SKU"/></div>
-        <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>Product</th><th>Category</th><th>Price</th><th>Stock</th><th>Status</th><th>Actions</th></tr></thead><tbody>{filteredProducts.map(p => <tr key={p.id}><td><strong>{p.name}</strong><br/><span className="muted-text">{p.sku}</span></td><td>{categories.find(c => c.id === p.category_id)?.name || "—"}</td><td>{money(p.selling_price)}<br/><span className="muted-text">MRP {money(p.mrp)}</span></td><td>{p.quantity}</td><td>{p.is_active ? "Active" : "Inactive"}</td><td><div className="inline-actions"><button className="secondary" onClick={() => startEditProduct(p)}>Edit</button>{p.is_active && <button className="danger" onClick={() => archiveProduct(p.id)}>Archive</button>}</div></td></tr>)}</tbody></table></div>
+        <div className="section-head"><h2>Product catalogue ({catalogueFilteredProducts.length})</h2><div className="inline-actions"><select aria-label="Product status filter" style={{maxWidth:190}} value={productStatusFilter} onChange={e => setProductStatusFilter(e.target.value)}><option value="active">Active products</option><option value="archived">Archived products</option><option value="all">All products</option></select><input style={{maxWidth:260}} value={productSearch} onChange={e => setProductSearch(e.target.value)} placeholder="Search name or SKU"/></div></div>
+        <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>Product</th><th>Category</th><th>Price</th><th>Stock</th><th>Status</th><th>Actions</th></tr></thead><tbody>{catalogueFilteredProducts.map(p => <tr key={p.id}><td><strong>{p.name}</strong><br/><span className="muted-text">{p.sku}</span></td><td>{categories.find(c => c.id === p.category_id)?.name || "—"}</td><td>{money(p.selling_price)}<br/><span className="muted-text">MRP {money(p.mrp)}</span></td><td>{p.quantity}</td><td>{p.is_active ? "Active" : "Inactive"}</td><td><div className="inline-actions"><button className="secondary" onClick={() => startEditProduct(p)}>Edit</button>{p.is_active ? <button className="danger" onClick={() => archiveProduct(p.id)}>Archive</button> : <button className="secondary" onClick={() => restoreProduct(p.id)}>Restore</button>}</div></td></tr>)}</tbody></table></div>
       </div>
     </>}
 
