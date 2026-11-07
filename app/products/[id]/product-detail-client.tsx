@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Check, ChevronLeft, ChevronRight, ShoppingCart, Star, Truck, ShieldCheck, RotateCcw } from "lucide-react";
+import { ArrowLeft, Check, ChevronLeft, ChevronRight, ShoppingCart, Star, Truck, ShieldCheck, RotateCcw, Share2, Copy } from "lucide-react";
 import { getProducts, type Product } from "@/lib/products";
 import { supabaseBrowser } from "@/lib/supabase";
 import { StoreFooter, StoreHeader } from "@/components/store-chrome";
@@ -34,6 +34,8 @@ export default function ProductDetailPage() {
   const [reviewError, setReviewError] = useState("");
   const [reviewBusy, setReviewBusy] = useState(false);
   const [cartMessage, setCartMessage] = useState("");
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareMessage, setShareMessage] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -93,6 +95,32 @@ export default function ProductDetailPage() {
     }
   };
 
+  const openProductShare = async () => {
+    if (!product) return;
+    const url = window.location.href;
+    const shareData = { title: product.name, text: "Check out " + product.name + " on Velfrok.", url };
+    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+      try {
+        await navigator.share(shareData);
+        setShareMessage("");
+      } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") return;
+        setShareOpen(true);
+      }
+      return;
+    }
+    setShareOpen((open) => !open);
+  };
+
+  const copyProductLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setShareMessage("Product link copied. You can paste it into Instagram or any chat.");
+    } catch {
+      setShareMessage("Copy was blocked by your browser. Please copy the page URL from the address bar.");
+    }
+  };
+
   const submitReview = async (event: FormEvent) => {
     event.preventDefault();
     if (!product) return;
@@ -141,6 +169,25 @@ export default function ProductDetailPage() {
               <div className="product-review-summary">{visibleReviews.length ? <><span className="review-stars">{"★".repeat(Math.round(average))}{"☆".repeat(5-Math.round(average))}</span><span>{average.toFixed(1)} ({visibleReviews.length} reviews)</span></> : <span>Be the first to review this product</span>}</div>
               <div className="product-detail-price"><strong>{money(product.price)}</strong>{product.mrp>product.price && <><del>{money(product.mrp)}</del><span className="product-saving">Save {money(product.mrp-product.price)}</span></>}</div>
               <p className="product-tax-note">Inclusive of applicable taxes</p>
+              <div className="product-share">
+                <button type="button" className="product-share-trigger" onClick={openProductShare} aria-expanded={shareOpen}>
+                  <Share2 size={16} /> Share product
+                </button>
+                {shareOpen && (
+                  <div className="product-share-panel">
+                    <strong>Share this product</strong>
+                    <div className="product-share-links">
+                      <a href={`https://wa.me/?text=${encodeURIComponent("Check out " + product.name + " on Velfrok. " + (typeof window !== "undefined" ? window.location.href : ""))}`} target="_blank" rel="noopener noreferrer">WhatsApp</a>
+                      <a href={`https://t.me/share/url?url=${encodeURIComponent(typeof window !== "undefined" ? window.location.href : "")}&text=${encodeURIComponent("Check out " + product.name + " on Velfrok.")}`} target="_blank" rel="noopener noreferrer">Telegram</a>
+                      <a href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(typeof window !== "undefined" ? window.location.href : "")}`} target="_blank" rel="noopener noreferrer">Facebook</a>
+                      <a href={`https://twitter.com/intent/tweet?text=${encodeURIComponent("Check out " + product.name + " on Velfrok.")}&url=${encodeURIComponent(typeof window !== "undefined" ? window.location.href : "")}`} target="_blank" rel="noopener noreferrer">X</a>
+                      <button type="button" onClick={copyProductLink}><Copy size={13} /> Copy link</button>
+                    </div>
+                    <small>For Instagram, copy the link and paste it into your Instagram post or message.</small>
+                    {shareMessage && <p className="product-share-message" role="status">{shareMessage}</p>}
+                  </div>
+                )}
+              </div>
               <div className="product-stock">{product.quantity>0?<><Check size={16}/> In stock</>:<span>Currently out of stock</span>}</div>
               {product.colours.length>0 && <div className="product-option"><h3>Colour <span>{selected.colour || selected.color || "Select a colour"}</span></h3><div className="option-chips">{product.colours.map(value=><button key={value} className={(selected.colour===value||selected.color===value)?"active":""} onClick={()=>chooseOption("colour",value)}>{value}</button>)}</div></div>}
               {attributeEntries.map(([key,values])=><div className="product-option" key={key}><h3>{labelize(key)} {requiredKeys.includes(key) && <span>Required</span>}</h3><div className="option-chips">{values.map(value=><button key={value} className={selected[key]===value?"active":""} onClick={()=>chooseOption(key,value)}>{value}</button>)}</div></div>)}
