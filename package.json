@@ -22,7 +22,8 @@
     "@pdf-lib/fontkit": "^1.1.1",
     "jszip": "^3.10.1",
     "@fontsource/noto-sans-bengali": "^5.2.6",
-    "nodemailer": "^7.0.3"
+    "nodemailer": "^7.0.3",
+    "bwip-js": "4.11.4"
   },
   "devDependencies": {
     "@types/node": "^22.13.4",
