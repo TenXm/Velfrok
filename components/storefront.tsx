@@ -724,20 +724,34 @@ function ProductCard({
   product: Product;
   onAdd: () => void;
 }) {
+  const [imageIndex, setImageIndex] = useState(0);
+  const galleryImages = product.images?.length ? product.images : product.image ? [product.image] : [];
+  const activeImage = galleryImages[imageIndex] || "";
+
   return (
     <article className="product">
       <Link className="product-image product-image-link" href={`/products/${product.id}`} aria-label={`View ${product.name}`}>
-        {product.image ? (
-          <img
-            src={product.image}
-            alt={product.name}
-            loading="lazy"
-          />
+        {activeImage ? (
+          <img src={activeImage} alt={product.name} loading="lazy" />
         ) : (
           <div className="empty">Image coming soon</div>
         )}
         <span className="discount">{product.badge}</span>
       </Link>
+      {galleryImages.length > 1 && (
+        <div className="product-card-image-dots" role="group" aria-label={`${product.name} images`}>
+          {galleryImages.map((image, index) => (
+            <button
+              key={image + index}
+              type="button"
+              className={index === imageIndex ? "active" : ""}
+              onClick={() => setImageIndex(index)}
+              aria-label={`Show product image ${index + 1}`}
+              aria-pressed={index === imageIndex}
+            />
+          ))}
+        </div>
+      )}
 
       <div className="product-info">
         <h3><Link className="product-title-link" href={`/products/${product.id}`}>{product.name}</Link></h3>
