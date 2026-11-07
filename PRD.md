@@ -5,6 +5,39 @@ e# Master Product Requirements Document (PRD): Full-Stack Secure Online Shop (Bu
 
 ---
 
+## As-built implementation addendum (reviewed 2026-11-07)
+
+This addendum records the current implementation where it differs from the original target specification below. The original PRD remains the desired-state reference; use ROADMAP.md for the item-by-item completion and pending list.
+
+### Current architecture clarifications
+
+- Admin authentication is password plus a separately verified six-digit Email OTP delivered through the Gmail REST API. The verified JWT claim is admin_email_otp_verified=true. The current implementation does not use Supabase aal2 as its Admin OTP assurance mechanism, and Admin OTP delivery no longer uses Resend. Customer SMTP remains separate.
+- The current Product Details route is /products/[id], not /product/[sku].
+- UPI payment is a locked-amount UPI intent/QR followed by 12-digit UTR submission, hCaptcha and manual Admin verification. A submitted UTR or WhatsApp screenshot is not proof of payment; no automatic bank-side confirmation is implemented.
+- Courier tracking is an official courier tracking-page link. There is no courier API integration.
+- The current security headers use an active CSP with unsafe-eval removed. unsafe-inline remains for compatibility; nonce-based whole-site rendering is not part of the current implementation.
+
+### Features added to the current main branch after the original PRD
+
+- Product archive filtering and Restore.
+- Durable Admin Audit Log for order, product, coupon and inventory events.
+- Native Web Share with WhatsApp, Telegram, Facebook, X and copy-link fallback on Product Details.
+- Product gallery pinch/double-click zoom, product-card image dots and clearer low-stock states.
+- Product-specific SEO metadata, canonical URL, OpenGraph/Twitter metadata, Product JSON-LD, dynamic sitemap and robots rules.
+- UTR help dialog with Google Pay, PhonePe and Paytm navigation guidance. This is a text-based guide, not the original annotated screenshot/illustration requirement.
+- Code-128 order barcode and QR payload in generated PDF invoices. The QR includes internal order ID, order number, UTR, payment status and verified total when accepted. The current orders schema has no separate transaction_id/payment_reference field, so no such field is fabricated.
+- Customer invoice download is available only for the authenticated owner of an order after payment_status becomes accepted.
+- Bulk Accept/Reject for selected UPI orders awaiting UTR verification; each order is still processed through the existing verified Admin payment RPC and audit logging.
+
+### Remaining external or design-dependent checkpoints
+
+- Set an authorised business UPI ID and display name in Vercel and perform a controlled payment test.
+- Verify the final invoice layout against the owner's sample invoice if pixel-level matching is required.
+- Verify the production domain in Google Search Console, submit sitemap.xml and request indexing. These steps require domain-owner access and cannot be completed by a repository commit alone.
+- Replace the text-based UPI guide with annotated app screenshots only when approved, current guide assets are available.
+
+---
+
 ## 1. Executive Summary & Architecture Goals
 
 This Product Requirements Document (PRD) defines the end-to-end functional design, security architecture, database rules, and chronological execution roadmap—from initial repository setup to final Google Search Console indexing—for a modern, high-conversion online shop.
