@@ -50,7 +50,7 @@ export async function DELETE(req) {
     if (storageError) return Response.json({ error: "Could not delete the Excel file." }, { status: 500 });
     const { error: deleteError } = await db.from("order_archives").update({ deleted_at: new Date().toISOString() }).eq("id", id);
     if (deleteError) return Response.json({ error: "File deleted but archive metadata could not be updated. Contact support." }, { status: 500 });
-    try { await auditLog(user.email || user.id, "order.archive.delete", { id, fileName: archive.file_name }, clientIp(req)); } catch (e) { console.error("Audit logging failed:", e); }
+    try { await auditLog(user.id, "order.archive.delete", { actorEmail: user.email || null, id, fileName: archive.file_name }, clientIp(req)); } catch (e) { console.error("Audit logging failed:", e); }
     return Response.json({ ok: true });
   } catch (error) {
     if (error instanceof Response) return error;
