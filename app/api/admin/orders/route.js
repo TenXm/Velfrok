@@ -5,6 +5,29 @@ import { clean } from "@/lib/sanitize";
 import { rateLimit, clientIp } from "@/lib/rate-limit";
 
 const NEXT_STATUS = { confirmed: "packed", packed: "ready_to_ship", ready_to_ship: "shipped", shipped: "delivered", delivered: null };
+const COURIER_TRACKING_URLS = {
+  "Amazon Shipping": "https://shipping.amazon.in/",
+  "Aramex": "https://www.aramex.com/express/track.aspx",
+  "Blitz": "https://www.blitz.delivery/",
+  "Blue Dart Express": "https://www.bluedart.com/tracking",
+  "Bombino Express": "https://www.bombinoexp.com/",
+  "Borzo (WeFast)": "https://borzodelivery.com/in",
+  "Delhivery": "https://www.delhivery.com/tracking",
+  "DHL Express": "https://www.dhl.com/en/express/tracking.html",
+  "Dunzo": "https://www.dunzo.com/",
+  "Ekart Logistics": "https://ekartlogistics.com/",
+  "FedEx": "https://www.fedex.com/en-in/tracking.html",
+  "India Post (Speed Post)": "https://www.indiapost.gov.in/_layouts/15/dop.tracking.ui/trackconsignment.aspx",
+  "Pidge": "https://www.pidge.in/",
+  "Shadowfax": "https://www.shadowfax.in/",
+  "Shree Maruti Courier": "https://www.shreemaruticourier.com/",
+  "Shree Tirupati Courier": "https://www.shreetirupaticourier.net/",
+  "Smartr Logistics": "https://smartr.in/",
+  "The Professional Couriers": "https://www.tpcindia.com/",
+  "Trackon Couriers": "https://trackon.in/",
+  "UPS (United Parcel Service)": "https://www.ups.com/track",
+  "XpressBees": "https://www.xpressbees.com/track",
+};
 function fail(message, status) { return Response.json({ error: message }, { status }); }
 
 export async function GET(req) {
@@ -66,7 +89,7 @@ export async function PATCH(req) {
         return fail("Accept and prepare the order before assigning a courier.", 409);
       }
       const { data: updated, error: updateError } = await db.from("orders")
-        .update({ delivery_partner: partner, awb_number: awb, tracking_url: trackingUrl || null })
+        .update({ delivery_partner: partner, awb_number: awb, tracking_url: trackingUrl || COURIER_TRACKING_URLS[partner] || null })
         .eq("id", id).select("id,delivery_partner,awb_number,tracking_url").maybeSingle();
       if (updateError || !updated) return fail("Could not save delivery details.", 500);
       try { await auditLog(user.email || user.id, "order.delivery.save", { id, partner, awb }, clientIp(req)); } catch (e) { console.error("Audit logging failed:", e); }
