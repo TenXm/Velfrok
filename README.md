@@ -83,7 +83,7 @@ The repository currently has no committed package lockfile. Vercel resolves depe
 
 ## Roadmap and release checks
 
-See [ROADMAP.md](./ROADMAP.md) for the PRD-to-code comparison, remaining work, priorities and verification rules.
+See [ROADMAP.md](./ROADMAP.md) for the PRD-to-code comparison and [PRODUCTION-CHECKLIST.md](./PRODUCTION-CHECKLIST.md) for the final regression steps.
 
 Before launch:
 
