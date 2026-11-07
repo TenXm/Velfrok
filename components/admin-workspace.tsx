@@ -499,6 +499,38 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
     finally { setBusy(false); }
   };
 
+  const bulkUpdatePayment = async (paymentStatus: "accepted" | "rejected") => {
+    const eligible = orders.filter(order =>
+      selectedOrders.includes(order.id) &&
+      order.payment_method === "upi" &&
+      order.payment_status === "pending_verification"
+    );
+    if (!eligible.length) {
+      setError("Select UPI orders with a submitted UTR awaiting verification.");
+      return;
+    }
+    if (eligible.length > 20) {
+      setError("Bulk payment decisions are limited to 20 eligible orders at a time.");
+      return;
+    }
+    const actionLabel = paymentStatus === "accepted" ? "accept" : "reject";
+    if (!window.confirm(`Are you sure you want to ${actionLabel} payment for ${eligible.length} selected UPI order(s)? Each order will still be checked by the secure payment RPC.`)) return;
+
+    setBusy(true); setError(""); setMessage("");
+    try {
+      const result = await api("/api/admin/orders/bulk-payment", {
+        method: "POST",
+        body: JSON.stringify({ orderIds: eligible.map(order => order.id), paymentStatus }),
+      });
+      setMessage(`Bulk payment update: ${result.succeeded} succeeded, ${result.failed} failed.`);
+      if (result.failed) setError("Some orders could not be updated. Refresh and review the failed orders individually.");
+      setSelectedOrders([]);
+      await loadAll();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Bulk payment update failed.");
+    } finally { setBusy(false); }
+  };
+
   const updateOrder = async (order: AnyRow, field: "payment" | "fulfillment") => {
     const edit = orderEdits[order.id] || { payment: order.payment_status || "pending_utr", fulfillment: order.fulfillment_status || "confirmed" };
     const body = field === "payment" ? { orderId: order.id, paymentStatus: edit.payment } : { orderId: order.id, fulfillmentStatus: edit.fulfillment };
@@ -585,6 +617,7 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
     const matchesSearch = [o.order_number, o.customer_name, o.mobile].some(v => String(v || "").toLowerCase().includes(orderSearch.toLowerCase()));
     return matchesStatus && matchesDate && matchesSearch;
   });
+  const selectedPendingPaymentCount = orders.filter(o => selectedOrders.includes(o.id) && o.payment_method === "upi" && o.payment_status === "pending_verification").length;
   const selectedDayOrders = selectedOrderDate ? orders.filter(o => localDateKey(o.created_at) === selectedOrderDate) : [];
   const dayCount = (event: string) => orders.filter(o => event === "dispatched"
     ? localDateKey(o.dispatched_at || "") === selectedOrderDate
@@ -684,6 +717,8 @@ export default function AdminWorkspace({ accessToken, initialOrders = [] }: Prop
           Select all matching
         </label>
         <span className="muted-text">{selectedOrders.length} selected</span>
+        {selectedPendingPaymentCount > 0 && <button className="primary" disabled={busy || selectedPendingPaymentCount > 20} onClick={() => bulkUpdatePayment("accepted")}>Bulk Accept Payment ({selectedPendingPaymentCount})</button>}
+        {selectedPendingPaymentCount > 0 && <button className="secondary" disabled={busy || selectedPendingPaymentCount > 20} onClick={() => bulkUpdatePayment("rejected")}>Bulk Reject Payment ({selectedPendingPaymentCount})</button>}
         <button className="primary" disabled={invoiceBusy || selectedOrders.length === 0 || selectedOrders.length > 50} onClick={() => downloadInvoices("zip")}>{invoiceBusy ? "Generating…" : "Download ZIP"}</button>
         <button className="secondary" disabled={invoiceBusy || selectedOrders.length === 0 || selectedOrders.length > 50} onClick={() => downloadInvoices("combined")}>{invoiceBusy ? "Generating…" : "Download Combined PDF"}</button>
       </div>
