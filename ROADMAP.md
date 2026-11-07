@@ -3,7 +3,7 @@
 Last reviewed: 2026-11-07
 Source of truth: PRD.md, current main branch, and production checks reported by the project owner.
 
-Status key: Done = present and/or verified; Partial = implemented in part; Pending = not found in the reviewed source or requires external owner action. A source-code review is not a substitute for a live production test.
+Status key: [x] Done = production-tested or verified in the reviewed source; [ ] Committed = code is on main but awaits Vercel deployment/production testing; [ ] Pending = external action or further implementation remains. A source-code review is not a substitute for a live production test.
 
 ## Verified foundation
 - [x] Next.js 15.5.29 production deployment on Vercel.
@@ -30,36 +30,43 @@ Status key: Done = present and/or verified; Partial = implemented in part; Pendi
 - [ ] Keep payment acceptance manual unless a trusted payment-provider integration is deliberately introduced. A UTR alone is not proof of payment.
 
 ### P1 — Invoice and order operations
-- [ ] Add Code-128 barcode to generated PDF invoice (Order ID/SKU payload).
-- [ ] Add QR code to generated PDF invoice (Order ID, transaction reference, UTR and verified total; never include secrets).
-- [ ] Add customer invoice download after payment acceptance, with ownership and status checks.
-- [ ] Add safe bulk Accept/Reject payment actions only if they preserve the existing per-order validation, stock and audit behavior.
+- [ ] Committed: Code-128 order-number barcode added to PDF invoices; verify scan/readability after deployment.
+- [ ] Committed: QR added with order ID, order number, UTR, payment status and accepted total. Current schema has no separate transaction-reference field; verify QR contents after deployment.
+- [ ] Committed: customer invoice endpoint checks bearer-authenticated ownership and accepted payment status; verify download after deployment.
+- [ ] Committed: bulk Accept/Reject for up to 20 selected UPI orders in Pending Verification; each item uses the existing payment RPC and audit log. Verify partial-failure behavior after deployment.
 - [ ] Compare invoice layout with the owner's sample invoice if exact matching is required.
 
 ### P1 — Product detail and sharing
-- [ ] Add native Web Share and fallback share links (WhatsApp, Telegram, Facebook, X and Copy Link) to product details.
-- [ ] Add image zoom/pinch interaction to the product detail gallery.
-- [ ] Add clearer low-stock and out-of-stock states.
-- [ ] Add product-card image switching/dots if the card gallery is still required.
+- [ ] Committed: native Web Share plus WhatsApp, Telegram, Facebook, X and Copy Link fallback; Instagram users copy the link and share it in-app. Verify on mobile and desktop.
+- [ ] Committed: product gallery pinch zoom and double-click zoom/reset; verify on touch devices.
+- [ ] Committed: Product Details now shows low-stock quantity and distinct Out of Stock text/style; verify against live stock.
+- [ ] Committed: product cards now have accessible image dots when multiple images exist; verify with a multi-image product.
 
 ### P1 — UTR assistance
-- [ ] Add the PRD's UTR reminder popup with the exact reminder copy.
-- [ ] Add clearly labelled Google Pay, PhonePe and Paytm UTR-location guide assets.
+- [ ] Committed: UTR help dialog includes the exact reminder copy and opens when an empty UTR submission is attempted; verify after deployment.
+- [ ] Partial: app-specific text navigation guide is committed for Google Pay, PhonePe and Paytm. Annotated screenshots/illustrations remain pending; labels can vary by app version.
 - [ ] Preserve the option to save an order as Pending UTR and submit later from My Orders.
 
 ### P1 — SEO launch
-- [ ] Add per-product metadata, canonical URL and OpenGraph price/image fields.
-- [ ] Add Product JSON-LD with truthful live price and stock availability.
-- [ ] Add dynamic sitemap for active products and categories.
-- [ ] Add robots.txt with private-route disallow rules and sitemap reference.
+- [ ] Committed: per-product metadata, canonical URL, OpenGraph/Twitter image and price tags; verify generated HTML after deployment.
+- [ ] Committed: Product JSON-LD uses current product price and quantity-based availability; verify with Google's Rich Results Test.
+- [ ] Committed: hourly revalidated sitemap includes homepage and active product URLs. No category-detail route currently exists, so no nonexistent category URLs are emitted.
+- [ ] Committed: robots.txt allows storefront and disallows Admin, API, checkout, login, My Orders and payment-token routes.
 - [ ] Verify domain ownership in Google Search Console and submit sitemap (owner action).
 - [ ] Inspect representative URLs and request indexing (owner action).
 
 ### P2 — Documentation and release assurance
-- [ ] Rewrite README to describe the current production architecture rather than the original starter scaffold.
-- [ ] Reconcile PRD statements about Resend/aal2, routes and implementation details with the live Gmail REST + verified Email OTP claim architecture.
-- [ ] Add a final regression checklist for customer, Admin, payment, inventory, archive/restore, invoice and security boundaries.
+- [x] README rewritten to describe current production architecture.
+- [x] PRD now includes an as-built addendum documenting Gmail REST + verified Email OTP claim, current routes and manual payment/courier limitations.
+- [ ] Add/run the final regression checklist after the current deployment is Ready.
 - [ ] Run final production smoke tests after each deployment.
+
+### Still pending outside repository
+
+- [ ] Configure authorised business UPI ID and display name in Vercel, then perform a controlled real-world test payment.
+- [ ] Verify the production domain in Google Search Console, submit sitemap.xml and request indexing (requires domain-owner access).
+- [ ] Upload/provide the preferred sample invoice only if exact visual matching is required.
+- [ ] Prepare approved current annotated UPI guide images; text guide is implemented, image assets are not.
 
 ## Safe implementation rules
 1. Inspect the existing route, schema, API authorization and UI before changing a feature.
