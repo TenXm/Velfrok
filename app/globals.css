@@ -1502,3 +1502,16 @@ a {
     height: 44px;
   }
 }
+
+
+/* Product sharing controls and accessible fallback share panel. */
+.product-share{position:relative;margin:10px 0 14px}
+.product-share-trigger{display:inline-flex;align-items:center;gap:8px;min-height:38px;padding:0 13px;border:1px solid #dce7dd;border-radius:10px;background:#fff;color:#315b40;font-size:12px;font-weight:750;cursor:pointer;transition:background .18s,border-color .18s}
+.product-share-trigger:hover{border-color:#9bb8a0;background:#f5faf4}
+.product-share-panel{display:grid;gap:11px;margin-top:9px;padding:13px;border:1px solid #e2eae1;border-radius:13px;background:#fff;box-shadow:0 10px 28px rgba(25,55,35,.08)}
+.product-share-panel>strong{color:#2f4935;font-size:12px}
+.product-share-links{display:flex;flex-wrap:wrap;gap:7px}
+.product-share-links a,.product-share-links button{display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:34px;padding:0 10px;border:1px solid #dce7dd;border-radius:8px;background:#f8fbf7;color:#315b40;text-decoration:none;font-size:11px;font-weight:700;cursor:pointer}
+.product-share-links a:hover,.product-share-links button:hover{background:#edf5eb;border-color:#aac4ad}
+.product-share-panel small{color:#758277;font-size:10px;line-height:1.5}
+.product-share-message{margin:0;color:#287044;font-size:11px;line-height:1.5}
