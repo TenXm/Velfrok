@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type TouchEvent } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ArrowLeft, Check, ChevronLeft, ChevronRight, ShoppingCart, Star, Truck, ShieldCheck, RotateCcw, Share2, Copy } from "lucide-react";
@@ -24,6 +24,9 @@ export default function ProductDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [imageIndex, setImageIndex] = useState(0);
+  const [imageZoom, setImageZoom] = useState(1);
+  const pinchStartDistance = useRef(0);
+  const pinchStartScale = useRef(1);
   const [selected, setSelected] = useState<Record<string, string>>({});
   const [reviews, setReviews] = useState<Review[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
@@ -74,6 +77,26 @@ export default function ProductDetailPage() {
   const visibleReviews = reviews;
   const average = visibleReviews.length ? visibleReviews.reduce((sum, r) => sum + r.rating, 0) / visibleReviews.length : 0;
   const related = product ? allProducts.filter(p => p.id !== product.id).sort((a, b) => Number(b.category === product.category) - Number(a.category === product.category)).filter(p => p.quantity > 0) : [];
+
+  const handleGalleryTouchStart = (event: TouchEvent<HTMLImageElement>) => {
+    if (event.touches.length !== 2) return;
+    const [first, second] = Array.from(event.touches);
+    pinchStartDistance.current = Math.hypot(first.clientX - second.clientX, first.clientY - second.clientY);
+    pinchStartScale.current = imageZoom;
+  };
+
+  const handleGalleryTouchMove = (event: TouchEvent<HTMLImageElement>) => {
+    if (event.touches.length !== 2 || pinchStartDistance.current <= 0) return;
+    event.preventDefault();
+    const [first, second] = Array.from(event.touches);
+    const distance = Math.hypot(first.clientX - second.clientX, first.clientY - second.clientY);
+    setImageZoom(Math.max(1, Math.min(3, pinchStartScale.current * distance / pinchStartDistance.current)));
+  };
+
+  const handleGalleryTouchEnd = () => {
+    pinchStartDistance.current = 0;
+    if (imageZoom <= 1.02) setImageZoom(1);
+  };
 
   const chooseOption = (key: string, value: string) => setSelected(old => ({ ...old, [key]: value }));
 
@@ -157,7 +180,7 @@ export default function ProductDetailPage() {
           <section className="product-detail">
             <div className="product-gallery">
               <div className="product-detail-image">
-                {images[imageIndex] ? <img src={images[imageIndex]} alt={product.name}/> : <div className="empty">Image coming soon</div>}
+                {images[imageIndex] ? <img src={images[imageIndex]} alt={product.name} style={{ transform: `scale(${imageZoom})`, touchAction: "none" }} onTouchStart={handleGalleryTouchStart} onTouchMove={handleGalleryTouchMove} onTouchEnd={handleGalleryTouchEnd} onDoubleClick={() => setImageZoom(value => value > 1 ? 1 : 2)} /> : <div className="empty">Image coming soon</div>}
                 {product.badge && <span className="discount">{product.badge}</span>}
                 {images.length > 1 && <><button className="gallery-arrow gallery-prev" onClick={() => setImageIndex(i => (i + images.length - 1) % images.length)} aria-label="Previous image"><ChevronLeft/></button><button className="gallery-arrow gallery-next" onClick={() => setImageIndex(i => (i + 1) % images.length)} aria-label="Next image"><ChevronRight/></button></>}
               </div>
@@ -188,7 +211,7 @@ export default function ProductDetailPage() {
                   </div>
                 )}
               </div>
-              <div className="product-stock">{product.quantity>0?<><Check size={16}/> In stock</>:<span>Currently out of stock</span>}</div>
+              <div className="product-stock">{product.quantity>0?<><Check size={16}/> {product.quantity<10 ? `Only ${product.quantity} left in stock` : "In stock"}</>:<span>Out of stock</span>}</div>
               {product.colours.length>0 && <div className="product-option"><h3>Colour <span>{selected.colour || selected.color || "Select a colour"}</span></h3><div className="option-chips">{product.colours.map(value=><button key={value} className={(selected.colour===value||selected.color===value)?"active":""} onClick={()=>chooseOption("colour",value)}>{value}</button>)}</div></div>}
               {attributeEntries.map(([key,values])=><div className="product-option" key={key}><h3>{labelize(key)} {requiredKeys.includes(key) && <span>Required</span>}</h3><div className="option-chips">{values.map(value=><button key={value} className={selected[key]===value?"active":""} onClick={()=>chooseOption(key,value)}>{value}</button>)}</div></div>)}
               <button className="product-detail-shop-button product-add-button" disabled={product.quantity<1} onClick={addToCart}><ShoppingCart size={17}/> Add to Cart</button>
