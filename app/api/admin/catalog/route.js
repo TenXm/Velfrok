@@ -124,7 +124,7 @@ export async function POST(req) {
       }
       await audit("product.create", {
         actorId: auth.user.id, actorEmail: auth.user.email || null, resourceId: data.id,
-        ipAddress: clientIp(req), productName: data.name, sku: data.sku, isActive: data.is_active,
+        ipAddress: clientIp(req), productName: data.name, sku: data.sku, quantity: data.quantity, isActive: data.is_active,
       });
       return Response.json({ product: data }, { status: 201 });
     }
