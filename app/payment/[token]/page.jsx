@@ -17,6 +17,8 @@ export default function PaymentPage({ params }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [utrHelpOpen, setUtrHelpOpen] = useState(false);
+  const [utrHelpApp, setUtrHelpApp] = useState("Google Pay");
 
   useEffect(() => {
     let active = true;
@@ -94,6 +96,7 @@ export default function PaymentPage({ params }) {
 
     if (!/^[0-9]{12}$/.test(utr.trim())) {
       setError("Enter a valid 12-digit UTR number.");
+      if (!utr.trim()) setUtrHelpOpen(true);
       return;
     }
 
@@ -208,7 +211,10 @@ export default function PaymentPage({ params }) {
               )}
 
               {UPI_ID && <form className="pay-form" onSubmit={submitUtr}>
-                <label htmlFor="utr">12-digit UTR / transaction reference</label>
+                <div className="pay-utr-label-row">
+                  <label htmlFor="utr">12-digit UTR / transaction reference</label>
+                  <button type="button" className="pay-utr-help-trigger" onClick={() => setUtrHelpOpen(true)}>Where to find UTR?</button>
+                </div>
                 <input
                   id="utr"
                   className="pay-input"
@@ -234,6 +240,27 @@ export default function PaymentPage({ params }) {
                 </button>
 
               </form>}
+              {utrHelpOpen && (
+                <div className="pay-help-backdrop" role="presentation" onClick={() => setUtrHelpOpen(false)}>
+                  <section className="pay-help-modal" role="dialog" aria-modal="true" aria-labelledby="pay-help-title" onClick={(event) => event.stopPropagation()}>
+                    <button type="button" className="pay-help-close" onClick={() => setUtrHelpOpen(false)} aria-label="Close UTR guide">×</button>
+                    <p className="pay-help-reminder">Please add UTR number to confirm order</p>
+                    <h3 id="pay-help-title">Find your 12-digit UTR</h3>
+                    <div className="pay-help-tabs" role="group" aria-label="Choose UPI app">
+                      {["Google Pay", "PhonePe", "Paytm"].map((app) => (
+                        <button type="button" key={app} className={utrHelpApp === app ? "active" : ""} onClick={() => setUtrHelpApp(app)}>{app}</button>
+                      ))}
+                    </div>
+                    <ol className="pay-help-steps">
+                      <li><strong>Open {utrHelpApp}</strong><span>Go to Activity, History or your recent payments.</span></li>
+                      <li><strong>Select this completed Velfrok payment</strong><span>Check that the amount matches your order.</span></li>
+                      <li><strong>Copy the UPI reference</strong><span>Look for UTR, UPI transaction ID or bank reference. The exact label may vary by app version.</span></li>
+                    </ol>
+                    <p className="pay-help-safety">Only submit the transaction reference. Never share your UPI PIN, password or OTP.</p>
+                    <button type="button" className="pay-help-done" onClick={() => setUtrHelpOpen(false)}>Got it — enter UTR</button>
+                  </section>
+                </div>
+              )}
 
               {UPI_ID && <p className="pay-footnote">You can submit your UTR later. Your payment is not confirmed until Velfrok verifies it.</p>}
               <div className="pay-whatsapp-action">
