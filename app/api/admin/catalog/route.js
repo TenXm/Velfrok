@@ -197,6 +197,24 @@ export async function PATCH(req) {
       if (!data) return fail("Parameter option not found.", 404);
       return Response.json({ option: data });
     }
+    if (body?.action === "restore") {
+      if (!UUID.test(body.id || "")) return fail("Invalid product ID.");
+      const db = supabaseAdmin();
+      const { data, error } = await db.from("products")
+        .update({ is_active: true, updated_at: new Date().toISOString() })
+        .eq("id", body.id).eq("is_active", false)
+        .select("id,name,sku,is_active").maybeSingle();
+      if (error) {
+        console.error("Product restore failed:", error.message);
+        return fail("Could not restore product.", 500);
+      }
+      if (!data) return fail("Archived product not found.", 404);
+      await audit("product.restore", {
+        actorId: auth.user.id, actorEmail: auth.user.email || null, resourceId: data.id,
+        ipAddress: clientIp(req), productName: data.name, sku: data.sku, isActive: data.is_active,
+      });
+      return Response.json({ ok: true, product: data });
+    }
     if (body?.action !== "product" || !UUID.test(body.id || "")) return fail("Invalid product update.");
     const normalized = normalizeProduct(body.product);
     if (normalized.error) return fail(normalized.error);
