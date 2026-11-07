@@ -1525,3 +1525,23 @@ a {
 .product-card-image-dots button{width:6px;height:6px;padding:0;border:0;border-radius:50%;background:#cbd5ca;cursor:pointer}
 .product-card-image-dots button.active{width:17px;border-radius:5px;background:#356548}
 .product-card-image-dots button:focus-visible{outline:2px solid #356548;outline-offset:3px}
+
+.pay-utr-label-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.pay-utr-help-trigger{border:0;background:transparent;color:#28744c;font-size:11px;font-weight:800;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.pay-help-backdrop{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:18px;background:rgba(15,28,20,.58);backdrop-filter:blur(5px)}
+.pay-help-modal{position:relative;width:min(100%,460px);max-height:min(88vh,720px);overflow:auto;padding:25px;border:1px solid #e3ebe1;border-radius:20px;background:#fff;box-shadow:0 24px 80px rgba(0,0,0,.24);animation:payRise .22s ease-out}
+.pay-help-close{position:absolute;top:12px;right:13px;width:34px;height:34px;border:1px solid #e2e9e0;border-radius:50%;background:#f8faf7;color:#435b48;font-size:23px;line-height:1;cursor:pointer}
+.pay-help-reminder{margin:0 38px 8px 0;color:#a35d19;font-size:12px;font-weight:850}
+.pay-help-modal h3{margin:0 0 16px;color:#243d2d;font-size:20px}
+.pay-help-tabs{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:15px}
+.pay-help-tabs button{padding:8px 11px;border:1px solid #dce6db;border-radius:9px;background:#fff;color:#536456;font-size:11px;font-weight:750;cursor:pointer}
+.pay-help-tabs button.active{border-color:#6f9878;background:#edf5eb;color:#28583a}
+.pay-help-steps{display:grid;gap:11px;margin:0;padding:0;list-style:none;counter-reset:utrstep}
+.pay-help-steps li{display:grid;gap:4px;padding:12px 13px;border:1px solid #e7ede5;border-radius:11px;background:#f9fbf8;counter-increment:utrstep}
+.pay-help-steps li:before{content:"STEP " counter(utrstep);color:#65816a;font-size:9px;font-weight:900;letter-spacing:.08em}
+.pay-help-steps strong{color:#304a36;font-size:12px}
+.pay-help-steps span{color:#78867a;font-size:11px;line-height:1.55}
+.pay-help-safety{margin:14px 0;color:#87612c;font-size:10px;line-height:1.6}
+.pay-help-done{width:100%;min-height:45px;border:0;border-radius:11px;background:#225b3d;color:#fff;font-size:12px;font-weight:850;cursor:pointer}
+@media(max-width:480px){.pay-help-modal{padding:21px 17px;border-radius:16px}}
+@media(prefers-reduced-motion:reduce){.pay-help-modal{animation:none}}
