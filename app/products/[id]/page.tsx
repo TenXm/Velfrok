@@ -1,4 +1,4 @@
-"import type { Metadata } from "next";
+import type { Metadata } from "next";
 import { supabaseServer } from "@/lib/supabase";
 import ProductDetailClient from "./product-detail-client";
 
@@ -7,14 +7,13 @@ type ProductSeoRecord = {
   name: string;
   sku: string | null;
   description: string | null;
-  mrp: number | string | null;
   selling_price: number | string | null;
   images: unknown;
   quantity: number | null;
   categories: { name?: string } | { name?: string }[] | null;
 };
 
-const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://velfrok.vercel.app").replace(/\\/+$/, "");
+const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://velfrok.vercel.app").replace(/\/+$/, "");
 
 function imageUrls(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
@@ -26,7 +25,7 @@ function imageUrls(value: unknown): string[] {
       if (typeof item.src === "string") return item.src;
     }
     return "";
-  }).filter((url): url is string => /^https?:\\/\\//i.test(url));
+  }).filter((url): url is string => /^https?:\/\//i.test(url));
 }
 
 async function getSeoProduct(id: string): Promise<ProductSeoRecord | null> {
@@ -34,7 +33,7 @@ async function getSeoProduct(id: string): Promise<ProductSeoRecord | null> {
   try {
     const { data, error } = await supabaseServer()
       .from("products")
-      .select("id,name,sku,description,mrp,selling_price,images,quantity,categories(name)")
+      .select("id,name,sku,description,selling_price,images,quantity,categories(name)")
       .eq("id", id)
       .eq("is_active", true)
       .maybeSingle();
@@ -50,47 +49,31 @@ async function getSeoProduct(id: string): Promise<ProductSeoRecord | null> {
 }
 
 function productDescription(product: ProductSeoRecord): string {
-  const description = (product.description || "").replace(/\\s+/g, " ").trim();
-  return (description || `Shop ${product.name} at Velfrok. Check product details, price and availability.`).slice(0, 160);
+  const description = (product.description || "").replace(/\s+/g, " ").trim();
+  return (description || ("Shop " + product.name + " at Velfrok. Check product details, price and availability.")).slice(0, 160);
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
   const product = await getSeoProduct(id);
   if (!product) {
-    return {
-      title: "Product unavailable | Velfrok",
-      robots: { index: false, follow: false },
-    };
+    return { title: "Product unavailable | Velfrok", robots: { index: false, follow: false } };
   }
 
-  const canonical = `${siteUrl}/products/${encodeURIComponent(product.id)}`;
+  const canonical = siteUrl + "/products/" + encodeURIComponent(product.id);
   const images = imageUrls(product.images);
   const price = Number(product.selling_price || 0);
   const description = productDescription(product);
+  const title = product.name + " | Velfrok";
 
   return {
-    title: `${product.name} | Velfrok`,
-    description,
-    alternates: { canonical },
+    title, description, alternates: { canonical },
     openGraph: {
-      type: "website",
-      url: canonical,
-      siteName: "Velfrok",
-      title: `${product.name} | Velfrok`,
-      description,
+      type: "website", url: canonical, siteName: "Velfrok", title, description,
       images: images.map((url) => ({ url, alt: product.name })),
     },
-    twitter: {
-      card: images.length ? "summary_large_image" : "summary",
-      title: `${product.name} | Velfrok`,
-      description,
-      images,
-    },
-    other: {
-      "product:price:amount": price.toFixed(2),
-      "product:price:currency": "INR",
-    },
+    twitter: { card: images.length ? "summary_large_image" : "summary", title, description, images },
+    other: { "product:price:amount": price.toFixed(2), "product:price:currency": "INR" },
   };
 }
 
@@ -112,12 +95,10 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
     brand: { "@type": "Brand", name: "Velfrok" },
     offers: {
       "@type": "Offer",
-      url: `${siteUrl}/products/${encodeURIComponent(product.id)}`,
+      url: siteUrl + "/products/" + encodeURIComponent(product.id),
       priceCurrency: "INR",
       price: price.toFixed(2),
-      availability: Number(product.quantity || 0) > 0
-        ? "https://schema.org/InStock"
-        : "https://schema.org/OutOfStock",
+      availability: Number(product.quantity || 0) > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
       itemCondition: "https://schema.org/NewCondition",
     },
   } : null;
@@ -125,10 +106,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
   return (
     <>
       {schema && (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(schema).replace(/</g, "\\\\u003c") }}
-        />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema).replace(/</g, "\\u003c") }} />
       )}
       <ProductDetailClient />
     </>
