@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase";
+import { rateLimit, clientIp } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,7 @@ function normalizeEmail(value) {
 
 export async function POST(req) {
   try {
+    await rateLimit(`auth-check-email:${clientIp(req)}`, 20, 60);
     let body;
 
     try {
@@ -63,6 +65,7 @@ export async function POST(req) {
       { headers: { "Cache-Control": "no-store" } }
     );
   } catch (error) {
+    if (error instanceof Response) return error;
     console.error("Email validation failed:", error);
     return Response.json(
       { error: "Unable to validate this email right now." },
