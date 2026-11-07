@@ -122,6 +122,7 @@ export async function GET(req) {
   try {
     const { user, error } = await requireUser(req);
     if (error) return error;
+    await rateLimit(`order-history:${user.id}`, 60, 60);
     const db = supabaseForUser(req);
     const { data, error: queryError } = await db.from("orders").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(100);
     if (queryError) { console.error("Order history lookup failed:", queryError.message); return responseError("Unable to load your orders.", 500); }
