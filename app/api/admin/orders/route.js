@@ -62,7 +62,7 @@ export async function PATCH(req) {
         .maybeSingle();
       if (rejectError) { console.error("Order rejection failed:", rejectError.message); return fail("Could not reject this order. Refresh and try again.", 409); }
       if (!rejectedOrder) return fail("This order is no longer pending and cannot be rejected.", 409);
-      try { await auditLog(user.email || user.id, "order.reject", { id, paymentMethod: rejectedOrder.payment_method }, clientIp(req)); } catch (e) { console.error("Audit logging failed:", e); }
+      try { await auditLog(user.id, "order.reject", { actorEmail: user.email || null, id, paymentMethod: rejectedOrder.payment_method }, clientIp(req)); } catch (e) { console.error("Audit logging failed:", e); }
       return Response.json({ ok: true, order: rejectedOrder }, { headers: { "Cache-Control": "no-store" } });
     }
 
@@ -70,7 +70,7 @@ export async function PATCH(req) {
       const fn = { accept_cod: "accept_cod_order", reject_cod: "reject_cod_order", collect_cod: "record_cod_payment" }[body.action];
       const { data, error: rpcError } = await userDb.rpc(fn, { p_order_id: id });
       if (rpcError) { console.error("COD workflow RPC failed:", rpcError.message); return fail("COD order action failed. Refresh and verify the order.", 409); }
-      try { await auditLog(user.email || user.id, `order.cod.${body.action}`, { id, result: data }, clientIp(req)); } catch (e) { console.error("Audit logging failed:", e); }
+      try { await auditLog(user.id, `order.cod.${body.action}`, { actorEmail: user.email || null, id, result: data }, clientIp(req)); } catch (e) { console.error("Audit logging failed:", e); }
       return Response.json({ ok: true, result: data }, { headers: { "Cache-Control": "no-store" } });
     }
 
@@ -92,7 +92,7 @@ export async function PATCH(req) {
         .update({ delivery_partner: partner, awb_number: awb, tracking_url: trackingUrl || COURIER_TRACKING_URLS[partner] || null })
         .eq("id", id).select("id,delivery_partner,awb_number,tracking_url").maybeSingle();
       if (updateError || !updated) return fail("Could not save delivery details.", 500);
-      try { await auditLog(user.email || user.id, "order.delivery.save", { id, partner, awb }, clientIp(req)); } catch (e) { console.error("Audit logging failed:", e); }
+      try { await auditLog(user.id, "order.delivery.save", { actorEmail: user.email || null, id, partner, awb }, clientIp(req)); } catch (e) { console.error("Audit logging failed:", e); }
       return Response.json({ ok: true, order: updated }, { headers: { "Cache-Control": "no-store" } });
     }
 
@@ -105,7 +105,7 @@ export async function PATCH(req) {
       if (!["accepted","rejected"].includes(paymentStatus)) return fail("Invalid payment status.", 400);
       const { data, error: rpcError } = await userDb.rpc(paymentStatus === "accepted" ? "confirm_order_payment" : "reject_order_payment", { p_order_id: id });
       if (rpcError) { console.error("Payment decision RPC failed:", rpcError.message); return fail("Payment decision failed. Refresh and verify the order.", 409); }
-      try { await auditLog(user.email || user.id, `order.payment.${paymentStatus}`, { id, result: data }, clientIp(req)); } catch (e) { console.error("Audit logging failed:", e); }
+      try { await auditLog(user.id, `order.payment.${paymentStatus}`, { actorEmail: user.email || null, id, result: data }, clientIp(req)); } catch (e) { console.error("Audit logging failed:", e); }
       return Response.json({ ok: true, result: data }, { headers: { "Cache-Control": "no-store" } });
     }
 
@@ -132,7 +132,7 @@ export async function PATCH(req) {
       .select("id,fulfillment_status,dispatched_at,delivered_at").maybeSingle();
     if (updateError) { console.error("Fulfillment update failed:", updateError.message); return fail("Fulfillment update failed.", 500); }
     if (!updated) return fail("The order changed while you were updating it. Refresh and try again.", 409);
-    try { await auditLog(user.email || user.id, "order.fulfillment.update", { id, fulfillmentStatus }, clientIp(req)); } catch (e) { console.error("Audit logging failed:", e); }
+    try { await auditLog(user.id, "order.fulfillment.update", { actorEmail: user.email || null, id, fulfillmentStatus }, clientIp(req)); } catch (e) { console.error("Audit logging failed:", e); }
     return Response.json({ ok: true, order: updated }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) { if (error instanceof Response) return error; console.error("Admin orders PATCH failed:", error); return fail("Server error.", 500); }
 }
