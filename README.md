@@ -1,61 +1,103 @@
 # Velfrok — Better living.
 
-A mobile-first storefront starter inspired by the supplied reference design and aligned with the uploaded Online Shop Master PRD.
+Velfrok is a production-oriented, mobile-first commerce application built with Next.js App Router, Supabase and Vercel.
 
-> This repository currently contains the storefront UI foundation and a security-minded project scaffold. It is **not production-ready for taking payments or storing customer orders** until the backend, authentication, RLS policies, checkout and admin phases are completed and tested.
+## Current capabilities
 
-## Android-only GitHub workflow (no terminal)
+- Customer email OTP sign-in and private order history.
+- Live Supabase product catalogue, product details, multi-image gallery, variants, reviews and cart.
+- Server-validated checkout, coupons, stock handling and UPI payment instructions.
+- 12-digit UTR submission with hCaptcha and manual Admin payment verification.
+- Admin password + Email OTP sign-in, protected Admin APIs and verified-admin database policies.
+- Admin Orders, Products, Archive/Restore, Inventory, Coupons, Invoice Settings and order archives.
+- Courier/AWB tracking links, CSV export and PDF invoice generation.
+- Durable Admin Audit Log for order, product, coupon and inventory operations.
+- Product SEO metadata, OpenGraph tags, Product JSON-LD, sitemap and robots rules.
 
-1. Download `velfrok-shop.zip` to your Android phone and extract it with your phone's Files app.
-2. Open GitHub in your mobile browser and sign in.
-3. Create a repository named `velfrok-shop`. Keep it private while developing.
-4. In the repository, use **Add file → Upload files**. Select the extracted project files and folders. If your mobile browser cannot upload folders, create files individually using **Add file → Create new file** and paste each file's contents. Keep the path shown in this repository (for example `app/globals.css`).
-5. Commit the upload.
-6. Create free accounts for Supabase and Vercel using your phone. Connect the GitHub repository to Vercel. Vercel builds the Next.js project; you do not need a terminal.
-7. Add environment variables in Vercel project settings. Never commit `.env.local`, service-role keys, SMTP secrets, or Redis tokens to GitHub.
+## Architecture and security
 
-## Project paths
+- Next.js 15.5.29 App Router runs on Vercel.
+- Supabase Postgres, Auth and Storage provide the backend.
+- The browser uses only the Supabase anon key. SUPABASE_SERVICE_ROLE_KEY is server-only and must never use a NEXT_PUBLIC_ prefix.
+- Admin access requires an Admin membership and a separately verified Email OTP claim (admin_email_otp_verified=true).
+- Admin OTP delivery uses Gmail REST API with OAuth refresh credentials. Customer SMTP configuration remains separate.
+- Core Admin database policies use public.is_verified_admin(); payment and other protected RPCs retain their own checks.
+- Checkout totals, discounts and inventory are verified server-side. Never trust browser-submitted prices or payment state.
+- UPI payments are manually verified by an Admin. A submitted UTR or WhatsApp screenshot is not proof of payment.
+- Rate limiting prefers Upstash when configured and otherwise uses the Supabase database-backed limiter.
+- The active CSP has unsafe-eval removed. unsafe-inline remains for compatibility; do not replace it with nonce-based whole-site rendering without a separate tested migration.
 
-- `app/layout.tsx` — document metadata and root layout
-- `app/page.tsx` — storefront entry
-- `app/globals.css` — responsive visual system and mobile layout
-- `components/storefront.tsx` — storefront, search/filter, cart drawer, product card actions
-- `lib/products.ts` — temporary sample catalog; later replace with Supabase queries
-- `lib/store-config.ts` — editable brand/address/contact/UPI details
-- `supabase/migrations/001_store_schema.sql` — schema and baseline RLS policy design
-- `.env.example` — names of environment variables only; no secrets
+## Important routes
 
-## Editable business details
+| Route | Purpose |
+|---|---|
+| / | Storefront |
+| /products/[id] | Product details and sharing |
+| /checkout | Customer checkout |
+| /payment/[token] | UPI instructions and UTR submission |
+| /my-orders | Customer order history, tracking and verified invoice download |
+| /admin/login | Admin sign-in and Email OTP |
+| /admin | Admin workspace |
+| /sitemap.xml | Dynamic active-product sitemap |
+| /robots.txt | Search crawler rules |
 
-Open `lib/store-config.ts` in GitHub's mobile file editor and change:
-- `address`
-- `contactEmail`
-- `contactPhone`
-- `upiId`
-- `freeShippingAbove`
+## Vercel environment variables
 
-The UPI ID is currently a display/configuration value only. The checkout must generate a locked amount on the trusted server and verify payment/UTR according to the PRD before accepting real orders.
+Required server/public configuration (set values in Vercel Project Settings; never commit secrets):
 
-## Build phases (follow in order)
+- NEXT_PUBLIC_SUPABASE_URL
+- NEXT_PUBLIC_SUPABASE_ANON_KEY
+- SUPABASE_SERVICE_ROLE_KEY (server only)
+- GMAIL_CLIENT_ID
+- GMAIL_CLIENT_SECRET
+- GMAIL_REFRESH_TOKEN
+- GMAIL_FROM_EMAIL
+- NEXT_PUBLIC_HCAPTCHA_SITEKEY
+- NEXT_PUBLIC_UPI_ID (authorised business UPI destination)
+- NEXT_PUBLIC_UPI_NAME
+- NEXT_PUBLIC_SITE_URL (optional; defaults to https://velfrok.vercel.app)
+- UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN (optional; database rate limiting is used when absent)
 
-1. **Repository & hosting** — upload these files, connect Vercel.
-2. **Supabase schema and RLS** — apply and review the SQL migration; test anonymous, customer and admin access.
-3. **Authentication** — customer email OTP and admin password + email OTP MFA (`aal2`).
-4. **Storefront data** — replace sample catalog with Supabase products, real product details, stock and image storage.
-5. **Checkout** — server-side cart price lookup, coupon validation, atomic stock reservation, UPI QR/deep link, UTR reminder and order creation.
-6. **Admin console** — orders/invoices, products, inventory, coupons; guard every page and server action.
-7. **Security audit** — rate limits, Zod validation, CSP, RLS tests and payment reconciliation.
-8. **SEO launch** — dynamic product metadata, Product JSON-LD, sitemap, robots and Google Search Console.
+Keep existing customer SMTP variables separate from the Admin Gmail REST OAuth variables.
 
-## Important security rules
+## Supabase database changes
 
-- Never trust price, subtotal, discount, inventory, role, or payment status submitted by the browser.
-- Never expose `SUPABASE_SERVICE_ROLE_KEY` to a browser/client component.
-- Store admin role only in server-controlled `app_metadata`, never customer-editable user metadata.
-- Verify admin role and MFA assurance on every protected request.
-- Confirm UPI payments manually/through a trusted provider before marking orders accepted. A submitted UTR is not proof of payment.
-- Test SQL policies before adding real customer data.
+The live database already contains production tables and policies. Read supabase/README.md before applying SQL. In particular, do not rerun migrations/001_store_schema.sql against the live database; it is the original starter schema and does not match every current production column.
 
-## Current sample storefront notes
+Apply only migrations that are confirmed missing from the correct Velfrok Supabase project. Do not run a migration twice just because it appears in the repository.
 
-The catalog uses sample product records and remote demonstration images. Replace these with your own licensed product photos and live database data before public launch. The cart is currently client-side demo state and does not persist across reloads.
+## Development
+
+```bash
+npm install
+npm run dev
+```
+
+Production build:
+
+```bash
+npm run build
+```
+
+The repository currently has no committed package lockfile. Vercel resolves dependencies from package.json during deployment.
+
+## Roadmap and release checks
+
+See [ROADMAP.md](./ROADMAP.md) for the PRD-to-code comparison, remaining work, priorities and verification rules.
+
+Before launch:
+
+1. Configure an authorised business UPI ID and display name; do not accept real payments while UPI configuration is missing.
+2. Run a controlled payment/UTR verification test.
+3. Test Admin invoice PDF generation and customer invoice download after a payment is accepted.
+4. Verify product metadata, OpenGraph, JSON-LD, sitemap.xml and robots.txt in production.
+5. Verify domain ownership in Google Search Console, submit the sitemap and request indexing.
+6. Run the final customer/Admin/security regression checklist.
+
+## Safe operating rules
+
+- Never expose service-role keys, Gmail OAuth secrets, customer OTPs or Admin OTPs.
+- Never ask customers to disclose UPI PINs, passwords or OTPs.
+- Never mark a payment accepted solely because a UTR or screenshot was submitted.
+- Use dedicated test products and controlled test orders. Do not mutate real customer orders for feature testing.
+- Preserve Admin Email OTP verification, RLS, rate limits and audit logging during future changes.
