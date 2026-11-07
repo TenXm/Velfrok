@@ -167,7 +167,6 @@ function normalizeProduct(input) {
     name, sku, slug, category_id: categoryId,
     description: text(input.description, 10000) || null,
     mrp, selling_price: sellingPrice, gst_rate: gstRate,
-    discount_pct: Math.round(((mrp - sellingPrice) / mrp) * 100),
     quantity, images, colours,
     dimensions: text(input.dimensions, 100) || null,
     weight: text(input.weight, 60) || null,
