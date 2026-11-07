@@ -211,7 +211,7 @@ export default function ProductDetailPage() {
                   </div>
                 )}
               </div>
-              <div className="product-stock">{product.quantity>0?<><Check size={16}/> {product.quantity<10 ? `Only ${product.quantity} left in stock` : "In stock"}</>:<span>Out of stock</span>}</div>
+              <div className={product.quantity>0 ? (product.quantity<10 ? "product-stock low-stock" : "product-stock") : "product-stock out-of-stock"}>{product.quantity>0?<><Check size={16}/> {product.quantity<10 ? `Only ${product.quantity} left in stock` : "In stock"}</>:<span>Out of stock</span>}</div>
               {product.colours.length>0 && <div className="product-option"><h3>Colour <span>{selected.colour || selected.color || "Select a colour"}</span></h3><div className="option-chips">{product.colours.map(value=><button key={value} className={(selected.colour===value||selected.color===value)?"active":""} onClick={()=>chooseOption("colour",value)}>{value}</button>)}</div></div>}
               {attributeEntries.map(([key,values])=><div className="product-option" key={key}><h3>{labelize(key)} {requiredKeys.includes(key) && <span>Required</span>}</h3><div className="option-chips">{values.map(value=><button key={value} className={selected[key]===value?"active":""} onClick={()=>chooseOption(key,value)}>{value}</button>)}</div></div>)}
               <button className="product-detail-shop-button product-add-button" disabled={product.quantity<1} onClick={addToCart}><ShoppingCart size={17}/> Add to Cart</button>
