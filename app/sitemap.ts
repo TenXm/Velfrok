@@ -1,6 +1,8 @@
 import type { MetadataRoute } from "next";
 import { supabaseServer } from "@/lib/supabase";
 
+export const revalidate = 3600;
+
 const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://velfrok.vercel.app").replace(/\/+$/, "");
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
