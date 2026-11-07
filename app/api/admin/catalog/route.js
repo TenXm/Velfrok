@@ -12,6 +12,19 @@ const slugify = (value) =>
 const text = (value, max = 5000) =>
   typeof value === "string" ? value.trim().slice(0, max) : "";
 
+async function fetchAllProducts(db) {
+  const pageSize = 500;
+  const rows = [];
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await db.from("products").select("*")
+      .order("created_at", { ascending: false }).range(from, from + pageSize - 1);
+    if (error) return { data: null, error };
+    rows.push(...(data || []));
+    if (!data || data.length < pageSize) break;
+  }
+  return { data: rows, error: null };
+}
+
 async function guard(req, key) {
   const auth = await requireAdmin(req);
   if (auth.error) return { error: auth.error };
@@ -26,7 +39,7 @@ export async function GET(req) {
     const db = supabaseAdmin();
 
     const [products, categories, options] = await Promise.all([
-      db.from("products").select("*").order("created_at", { ascending: false }).limit(500),
+      fetchAllProducts(db),
       db.from("categories").select("*").order("name"),
       db.from("product_attribute_options").select("*").eq("is_active", true).order("attribute_name").order("value"),
     ]);
