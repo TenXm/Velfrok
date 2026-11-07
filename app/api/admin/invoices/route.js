@@ -6,6 +6,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import JSZip from "jszip";
+import bwipjs from "bwip-js";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -92,6 +93,20 @@ async function makeInvoice(order, settings) {
   const discount = Number(order.discount_amount ?? order.discount ?? 0);
   const shipping = Number(order.shipping_amount ?? order.shipping ?? 0);
   const total = Number(order.total_amount ?? order.total ?? Math.max(0, subtotal - discount + shipping));
+  const qrPayload = JSON.stringify({
+    orderId: String(order.id),
+    orderNumber: orderNo,
+    utrNumber: text(order.utr_number) || null,
+    paymentStatus: text(order.payment_status || "unknown"),
+    verifiedTotal: order.payment_status === "accepted" ? Number(total.toFixed(2)) : null,
+    currency: "INR",
+  });
+  const [barcodeBytes, qrBytes] = await Promise.all([
+    bwipjs.toBuffer({ bcid: "code128", text: orderNo, scale: 2, height: 10, includetext: false, padding: 0 }),
+    bwipjs.toBuffer({ bcid: "qrcode", text: qrPayload, scale: 3, eclevel: "M", padding: 2 }),
+  ]);
+  const barcodeImage = await doc.embedPng(barcodeBytes);
+  const qrImage = await doc.embedPng(qrBytes);
 
   const gstByRate = new Map();
   const invoiceLineSubtotal = items.reduce((sum, item) => {
@@ -159,7 +174,11 @@ async function makeInvoice(order, settings) {
         "Fulfilment: " + safe(order.fulfillment_status || "—")
       ];
       details.forEach((value, index) => page.drawText(value, { x: 330, y: blockTop - 20 - index * 15, size: 8, font, color: dark }));
-      tableTop = PAGE.height - 278;
+      page.drawText("ORDER BARCODE", { x: 330, y: PAGE.height - 225, size: 6.5, font, color: grey });
+      page.drawImage(barcodeImage, { x: 330, y: PAGE.height - 258, width: 140, height: 27 });
+      page.drawText("ORDER / PAYMENT QR", { x: right - 66, y: PAGE.height - 225, size: 5.5, font, color: grey });
+      page.drawImage(qrImage, { x: right - 65, y: PAGE.height - 285, width: 58, height: 58 });
+      tableTop = PAGE.height - 350;
     } else {
       page.drawText("ITEMS CONTINUED", { x: left, y: PAGE.height - 153, size: 9, font: bold, color: black });
       tableTop = PAGE.height - 180;
