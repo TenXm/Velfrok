@@ -762,10 +762,12 @@ function ProductCard({
             <span className="mrp">{money(product.mrp)}</span>
           )}
         </div>
-
-        <button className="add" onClick={onAdd}>
+        <p className={product.quantity <= 0 ? "product-card-stock out" : product.quantity < 10 ? "product-card-stock low" : "product-card-stock"}>
+          {product.quantity <= 0 ? "Out of stock" : product.quantity < 10 ? `Only ${product.quantity} left in stock` : "In stock"}
+        </p>
+        <button className="add" onClick={onAdd} disabled={product.quantity <= 0}>
           <ShoppingCart size={14} />
-          Add to Cart
+          {product.quantity <= 0 ? "Out of Stock" : "Add to Cart"}
         </button>
       </div>
     </article>
