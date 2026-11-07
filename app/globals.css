@@ -1520,3 +1520,8 @@ a {
 .product-stock.low-stock{color:#a45b16}
 .product-stock.out-of-stock{color:#a33d35}
 @media(prefers-reduced-motion:reduce){.product-gallery .product-detail-image img{transition:none}}
+
+.product-card-image-dots{display:flex;align-items:center;justify-content:center;gap:6px;min-height:17px;margin:-3px 0 4px}
+.product-card-image-dots button{width:6px;height:6px;padding:0;border:0;border-radius:50%;background:#cbd5ca;cursor:pointer}
+.product-card-image-dots button.active{width:17px;border-radius:5px;background:#356548}
+.product-card-image-dots button:focus-visible{outline:2px solid #356548;outline-offset:3px}
