@@ -1,5 +1,6 @@
 import { requireAdmin, supabaseForUser } from "@/lib/auth";
-import { rateLimit } from "@/lib/rate-limit";
+import { rateLimit, clientIp } from "@/lib/rate-limit";
+import { audit } from "@/lib/audit";
 
 const fail = (message, status = 400) => Response.json({ error: message }, { status });
 
@@ -32,6 +33,13 @@ export async function PATCH(req) {
       console.error("Inventory RPC failed:", rpcError.message);
       return fail("Inventory update failed. Ensure migration 002_admin_catalog.sql has been applied and refresh the dashboard.", 409);
     }
+    await audit("inventory.adjust", {
+      actorId: user.id,
+      actorEmail: user.email || null,
+      ipAddress: clientIp(req),
+      itemCount: items.length,
+      inventoryChanges: items,
+    });
     return Response.json({ ok: true, results: data || [] }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     if (error instanceof Response) return error;
